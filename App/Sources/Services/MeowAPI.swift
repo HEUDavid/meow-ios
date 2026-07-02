@@ -199,6 +199,15 @@ final class MeowAPI: @unchecked Sendable {
         return try await get("/providers/proxies")
     }
 
+    func getDnsResults(search: String? = nil, limit: Int = 256) async throws -> [DnsResult] {
+        if Self.usesMockTransport { return Self.mockDnsResults(search: search) }
+        var queryItems = [URLQueryItem(name: "limit", value: String(limit))]
+        if let search, !search.isEmpty {
+            queryItems.append(URLQueryItem(name: "search", value: search))
+        }
+        return try await get("/dns/results", queryItems: queryItems)
+    }
+
     /// Triggers meow's bulk health-check for every proxy in a provider
     /// (`GET /providers/proxies/{name}/healthcheck`). The endpoint returns
     /// 204 on success; fresh delays are surfaced on the next `getProviders()`.
@@ -268,8 +277,11 @@ final class MeowAPI: @unchecked Sendable {
 
     // MARK: - Helpers
 
-    private func get<T: Decodable>(_ path: String) async throws -> T {
-        let url = baseURL.appending(path: path)
+    private func get<T: Decodable>(_ path: String, queryItems: [URLQueryItem] = []) async throws -> T {
+        var url = baseURL.appending(path: path)
+        if !queryItems.isEmpty {
+            url = url.appending(queryItems: queryItems)
+        }
         #if DEBUG
             // DIAGNOSTIC: remove once Logs/Connections views are stable in v1.0.
             log.info("HTTP GET \(url.absoluteString, privacy: .public)")
@@ -494,6 +506,17 @@ private extension MeowAPI {
                 proxies: providerProxies,
             ),
         ])
+    }
+
+    static func mockDnsResults(search: String?) -> [DnsResult] {
+        let all: [DnsResult] = [
+            .init(name: "www.gstatic.com", ips: ["142.250.72.14"], fromServer: "119.29.29.29", ttl: 298),
+            .init(name: "github.com", ips: ["140.82.112.4"], fromServer: "223.5.5.5", ttl: 412),
+            .init(name: "api.github.com", ips: ["140.82.112.5"], fromServer: "223.5.5.5", ttl: 389),
+            .init(name: "apple.com", ips: ["17.253.144.10"], fromServer: "system", ttl: 600),
+        ]
+        guard let search, !search.isEmpty else { return all }
+        return all.filter { $0.name.localizedCaseInsensitiveContains(search) }
     }
 
     static func mockLogStream(level: String) -> AsyncThrowingStream<LogEntry, Error> {

@@ -1,25 +1,20 @@
 import SwiftUI
 
 struct LogsView: View {
-    @Environment(MeowAPI.self) private var api
+    @Environment(UtilityLogsStore.self) private var logsStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var allEntries: [LogEntry] = []
-    @State private var level = "info"
-    @State private var autoScroll = true
-    @State private var errorMessage: String?
-    @State private var streamTask: Task<Void, Never>?
 
     private static let levelOrder = ["debug": 0, "info": 1, "warning": 2, "error": 3]
 
     private var entries: [LogEntry] {
-        let threshold = Self.levelOrder[level] ?? 0
-        return allEntries.filter { (Self.levelOrder[$0.type.lowercased()] ?? 0) >= threshold }
+        let threshold = Self.levelOrder[logsStore.level] ?? 0
+        return logsStore.allEntries.filter { (Self.levelOrder[$0.type.lowercased()] ?? 0) >= threshold }
     }
 
     var body: some View {
         VStack {
             HStack {
-                Picker("logs.picker.level", selection: $level) {
+                Picker("logs.picker.level", selection: levelBinding) {
                     Text("logs.level.debug").tag("debug")
                     Text("logs.level.info").tag("info")
                     Text("logs.level.warning").tag("warning")
@@ -27,7 +22,7 @@ struct LogsView: View {
                 }
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("logs.levelPicker")
-                Toggle("logs.toggle.autoScroll", isOn: $autoScroll)
+                Toggle("logs.toggle.autoScroll", isOn: autoScrollBinding)
                     .labelsHidden()
                     .toggleStyle(.button)
                     .accessibilityIdentifier("logs.autoScrollToggle")
@@ -51,7 +46,7 @@ struct LogsView: View {
                     }
                 }
                 .onChange(of: entries.count) { _, count in
-                    guard autoScroll, count > 0 else { return }
+                    guard logsStore.autoScroll, count > 0 else { return }
                     if reduceMotion {
                         proxy.scrollTo(count - 1, anchor: .bottom)
                     } else {
@@ -63,8 +58,12 @@ struct LogsView: View {
             }
         }
         .safeAreaInset(edge: .top) {
-            if let errorMessage {
-                errorBanner(errorMessage)
+            if let errorMessage = logsStore.errorMessage {
+                ErrorBanner(
+                    message: errorMessage,
+                    accessibilityLabel: Text("a11y.logs.errorBanner.label \(errorMessage)"),
+                    identifier: "logs.errorBanner",
+                )
             }
         }
         .navigationTitle(Text(
@@ -72,7 +71,20 @@ struct LogsView: View {
             comment: "Logs screen navigation title; %lld = entry count",
         ))
         .navigationBarTitleDisplayMode(.inline)
-        .task { await subscribe() }
+    }
+
+    private var levelBinding: Binding<String> {
+        Binding(
+            get: { logsStore.level },
+            set: { logsStore.level = $0 },
+        )
+    }
+
+    private var autoScrollBinding: Binding<Bool> {
+        Binding(
+            get: { logsStore.autoScroll },
+            set: { logsStore.autoScroll = $0 },
+        )
     }
 
     private func row(for entry: LogEntry, index: Int) -> some View {
@@ -90,39 +102,6 @@ struct LogsView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text("a11y.logs.row.label \(entry.type.uppercased()) \(entry.payload)"))
         .accessibilityIdentifier("logs.row.\(index)")
-    }
-
-    private func errorBanner(_ message: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(AppTheme.warning)
-                .accessibilityHidden(true)
-            Text(message)
-                .font(.caption)
-                .lineLimit(2)
-            Spacer()
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(.regularMaterial, in: .rect(cornerRadius: 8))
-        .padding(.horizontal)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text("a11y.logs.errorBanner.label \(message)"))
-        .accessibilityIdentifier("logs.errorBanner")
-    }
-
-    private func subscribe() async {
-        streamTask?.cancel()
-        let stream = api.streamLogs(level: "debug")
-        do {
-            for try await entry in stream {
-                errorMessage = nil
-                allEntries.append(entry)
-                if allEntries.count > 2000 { allEntries.removeFirst(allEntries.count - 2000) }
-            }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
     }
 
     private func color(for type: String) -> Color {
