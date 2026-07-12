@@ -69,18 +69,6 @@ struct SubscriptionsView: View {
                             .accessibilityLabel(Text("subscriptions.row.a11y.edit \(profile.name)"))
                             .accessibilityHint(Text("subscriptions.row.a11y.editHint"))
                             .accessibilityIdentifier("subscriptions.row.editYaml")
-                            if !profile.url.isEmpty {
-                                Button {
-                                    Task { try? await service.refresh(profile) }
-                                } label: {
-                                    Image(systemName: "arrow.clockwise")
-                                        .frame(minWidth: 44, minHeight: 44)
-                                        .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.borderless)
-                                .accessibilityLabel(Text("subscriptions.row.a11y.refresh \(profile.name)"))
-                                .accessibilityHint(Text("subscriptions.row.a11y.refreshHint"))
-                            }
                             if isExportable(profile) {
                                 Button {
                                     exporting = profile
@@ -116,6 +104,17 @@ struct SubscriptionsView: View {
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                     .swipeActions(edge: .leading) {
+                        if !profile.url.isEmpty {
+                            Button {
+                                Task { try? await service.refresh(profile) }
+                            } label: {
+                                Label("subscriptions.refresh.swipe", systemImage: "arrow.clockwise")
+                            }
+                            .tint(.blue)
+                            .accessibilityLabel(Text("subscriptions.row.a11y.refresh \(profile.name)"))
+                            .accessibilityHint(Text("subscriptions.row.a11y.refreshHint"))
+                            .accessibilityIdentifier("subscriptions.row.refresh")
+                        }
                         Button {
                             editingInfo = profile
                         } label: {
