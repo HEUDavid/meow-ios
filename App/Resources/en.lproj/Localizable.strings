@@ -72,6 +72,7 @@
 "subscriptions.add.button.add" = "Add";
 "subscriptions.add.button.adding" = "Adding…";
 "subscriptions.editInfo.swipe" = "Edit Info";
+"subscriptions.refresh.swipe" = "Refresh";
 "subscriptions.editInfo.nav.title" = "Edit Subscription";
 "subscriptions.editInfo.button.save" = "Save";
 "subscriptions.editInfo.footer" = "Changes to the URL take effect on the next refresh.";

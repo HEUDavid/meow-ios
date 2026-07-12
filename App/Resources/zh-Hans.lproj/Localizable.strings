@@ -78,6 +78,7 @@
 "subscriptions.add.button.add" = "添加";
 "subscriptions.add.button.adding" = "添加中…";
 "subscriptions.editInfo.swipe" = "编辑信息";
+"subscriptions.refresh.swipe" = "刷新";
 "subscriptions.editInfo.nav.title" = "编辑订阅";
 "subscriptions.editInfo.button.save" = "保存";
 "subscriptions.editInfo.footer" = "网址的更改将在下次刷新时生效。";
