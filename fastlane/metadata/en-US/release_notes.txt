@@ -1,5 +1,3 @@
-Public beta on iOS 26.
-
 • Subscriptions: tap the pencil icon next to the refresh button to open a built-in YAML editor for any subscription
 • Settings → About → Memory now shows live PacketTunnel memory usage
 • Stability and signing improvements for the App Store / TestFlight distribution path

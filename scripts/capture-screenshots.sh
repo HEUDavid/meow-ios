@@ -9,9 +9,12 @@
 # Output: fastlane/screenshots/<locale>/<Device>-<NN><Screen>.png — laid out so
 # `fastlane deliver` can upload it (deliver categorizes by pixel size).
 #
-# Prereq: build the app for the simulator first, e.g.
+# Prereq: build the app for the simulator first — Release, NOT Debug: the
+# Settings tab's "Debug Tunnel" section is #if DEBUG and must not appear in
+# App Store captures (the launch-arg hooks are runtime checks, so they still
+# work in Release). E.g.
 #   xcodebuild build -allowProvisioningUpdates -xcconfig Local.xcconfig \
-#     -project meow-ios.xcodeproj -scheme meow-ios -configuration Debug \
+#     -project meow-ios.xcodeproj -scheme meow-ios -configuration Release \
 #     -destination 'generic/platform=iOS Simulator' \
 #     -derivedDataPath build/DerivedData-snapshot DEVELOPMENT_TEAM=32B45SMMQL
 # Keep simulator signing enabled: App Group entitlements are required even
@@ -25,10 +28,11 @@ ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT"
 
 BUNDLE_ID="com.tangzixiang.meow"
-APP="${APP:-$(find build/DerivedData-snapshot/Build/Products -name 'meow-ios.app' -path '*iphonesimulator*' 2>/dev/null | head -1)}"
+APP="${APP:-$(find build/DerivedData-snapshot/Build/Products -name 'meow-ios.app' -path '*Release-iphonesimulator*' 2>/dev/null | head -1)}"
 OUT_ROOT="$ROOT/fastlane/screenshots"
 
-[[ -d "$APP" ]] || { echo "error: simulator app not found ($APP). Build it first." >&2; exit 1; }
+[[ -d "$APP" ]] || { echo "error: Release simulator app not found ($APP). Build it first (see prereq above)." >&2; exit 1; }
+case "$APP" in *Debug-iphonesimulator*) echo "error: $APP is a Debug build — its Debug Tunnel section must not ship in App Store screenshots." >&2; exit 1;; esac
 echo "==> App: $APP"
 
 # Required device sizes: iPhone 6.9" + iPad 13".
