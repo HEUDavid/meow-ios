@@ -31,6 +31,14 @@ Download current App Store metadata (text only) into ./fastlane/metadata
 
 Upload metadata to App Store Connect (no binary, no screenshots)
 
+### ios push_screenshots
+
+```sh
+[bundle exec] fastlane ios push_screenshots
+```
+
+Upload screenshots from ./fastlane/screenshots to App Store Connect
+
 ----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.
