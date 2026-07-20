@@ -1,0 +1,6 @@
+Build 2026072002 (1.4.0)
+
+• Improves DNS reliability with redir-host mode while keeping TLS SNI inspection enabled for accurate domain-rule matching.
+• Routes DNS lookups for GFW-listed domains through the tunnel, reducing poisoning and failures on restricted networks.
+• Expands the bundled GFW domain data with the canonical gfwlist.
+• Please test browsing on mainland China networks, especially domains that previously resolved incorrectly or failed to open.
