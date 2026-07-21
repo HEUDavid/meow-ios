@@ -5,6 +5,7 @@ typedef NS_ENUM(NSUInteger, MWNotification) {
     MWNotificationCommand,
     MWNotificationState,
     MWNotificationTraffic,
+    MWNotificationReloaded,
 };
 
 @interface MWDarwinObserver : NSObject

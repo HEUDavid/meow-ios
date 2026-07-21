@@ -6,6 +6,7 @@ static NSString *nameFor(MWNotification n) {
         case MWNotificationCommand: return @"com.meow.vpn.command";
         case MWNotificationState:   return @"com.meow.vpn.state";
         case MWNotificationTraffic: return @"com.meow.vpn.traffic";
+        case MWNotificationReloaded: return @"com.meow.vpn.reloaded";
     }
 }
 

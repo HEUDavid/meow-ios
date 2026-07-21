@@ -276,17 +276,75 @@ static os_log_t gLog;
     if ([command isEqualToString:@"stop"]) {
         [self cancelTunnelWithError:nil];
     } else if ([command isEqualToString:@"reload"]) {
-        // `reload` is currently a stop-only shim: the extension cancels the
-        // tunnel and the app is expected to re-trigger `start` once it
-        // observes the disconnected stage. M3 will add hot-reload via the
-        // meow REST API and avoid the round-trip.
-        os_log_info(gLog, "reload intent received (stop-only shim; app must restart)");
-        [self cancelTunnelWithError:nil];
+        // Config reload, hot first: reloadConfigWithError swaps
+        // mode/rules/proxies in the running engine — no flow drop, no DNS
+        // blackout. Fall back to an in-place restart only when the hot
+        // reload fails AND the new config validates on its own: restarting
+        // with a broken config would stop the healthy engine and fail to
+        // bring it back up. If the restart also fails, cancel the tunnel —
+        // the on-demand rule / app then recovers via full process recycle.
+        os_log_info(gLog, "reload intent received");
+        MWEngineLog(MWLogInfo, @"NE: reload intent received");
+        dispatch_async(_engineControlQueue, ^{
+            MWTunnelEngine *engine = self->_engine;
+            if (!engine) {
+                os_log_info(gLog, "reload ignored: engine not running");
+                return;
+            }
+            NSError *reloadErr = nil;
+            if ([engine reloadConfigWithError:&reloadErr]) {
+                // Selector groups were rebuilt → the app must replay persisted
+                // proxy selections. Traffic counters and startedAt (the engine
+                // generation marker) are deliberately untouched.
+                [MWDarwinBridge post:MWNotificationReloaded];
+                os_log_info(gLog, "config hot-reload complete");
+                MWEngineLog(MWLogInfo, @"NE: config hot-reload complete");
+                return;
+            }
+            os_log_error(gLog, "hot reload failed: %{public}@",
+                         reloadErr.localizedDescription);
+            MWEngineLogf(MWLogError, @"NE: hot reload failed: %@",
+                         reloadErr.localizedDescription);
+
+            if (![self effectiveConfigValidates]) {
+                // Broken config: keep the old one running. Log-only — the
+                // engine is still healthy on the previous config, so writing
+                // an "error" stage would misrepresent a connected tunnel.
+                return;
+            }
+
+            NSError *restartErr = nil;
+            if ([engine restartWithError:&restartErr]) {
+                // New startedAt generation: traffic counters rebased to zero and
+                // the app replays persisted proxy selections off this edge.
+                [self writeState:@"connected" profileID:nil errorMessage:nil];
+                os_log_info(gLog, "engine restart complete");
+                MWEngineLog(MWLogInfo, @"NE: engine restart complete");
+            } else {
+                os_log_error(gLog, "engine restart failed: %{public}@ — cancelling tunnel",
+                             restartErr.localizedDescription);
+                MWEngineLogf(MWLogError, @"NE: engine restart failed: %@ — cancelling tunnel",
+                             restartErr.localizedDescription);
+                [self writeState:@"error" profileID:nil
+                    errorMessage:restartErr.localizedDescription];
+                [self cancelTunnelWithError:nil];
+            }
+        });
     }
     // "start" while running: no-op
 }
 
 // MARK: - State
+
+- (BOOL)effectiveConfigValidates {
+    NSString *yaml = [NSString stringWithContentsOfURL:[MWAppGroup effectiveConfigURL]
+                                              encoding:NSUTF8StringEncoding
+                                                 error:nil];
+    if (!yaml) return NO;
+    return meow_engine_validate_config(
+               yaml.UTF8String,
+               (int)[yaml lengthOfBytesUsingEncoding:NSUTF8StringEncoding]) == 0;
+}
 
 - (void)writeState:(NSString *)stage
          profileID:(nullable NSString *)profileID

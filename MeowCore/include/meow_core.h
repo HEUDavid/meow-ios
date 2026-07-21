@@ -81,6 +81,17 @@ void meow_engine_stop(void);
 int meow_engine_is_running(void);
 
 /**
+ * Hot-reload mode/rules/proxies from `config_path` into the running engine
+ * without stopping listeners, DNS, or any in-flight flow. Returns 0 on
+ * success, -1 on error (inspect `meow_core_last_error`) — on error the old
+ * configuration keeps running untouched.
+ *
+ * # Safety
+ * `config_path` must point to a NUL-terminated UTF-8 string.
+ */
+int meow_engine_reload(const char *config_path);
+
+/**
  * Validate a Clash YAML config. Returns 0 on success, -1 on error.
  *
  * # Safety
