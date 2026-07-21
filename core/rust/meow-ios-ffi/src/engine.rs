@@ -17,6 +17,7 @@ use anyhow::{Context, Result};
 use dashmap::DashMap;
 use meow_api::log_stream::{LogBroadcastLayer, LogMessage};
 use meow_api::ApiServer;
+use meow_config::raw::RawConfig;
 use meow_config::{load_config, load_config_from_str, Config};
 use meow_dns::DnsServer;
 use meow_listener::{MixedListener, SnifferRuntime};
@@ -50,6 +51,10 @@ struct EngineState {
     tunnel: Tunnel,
     mixed_dial_addr: Option<SocketAddr>,
     dns_dial_addr: Option<SocketAddr>,
+    /// Shared with the REST `ApiServer` (it receives a clone of this Arc) so
+    /// a hot-reload can refresh what `GET /configs` reports and what a later
+    /// REST `PUT /configs` diffs against.
+    raw_config: Arc<RwLock<RawConfig>>,
     api_task: Option<JoinHandle<()>>,
     listener_tasks: Vec<JoinHandle<()>>,
 }
@@ -244,26 +249,52 @@ pub fn start(config_path: &str) -> Result<()> {
     tunnel.update_rules(cfg.rules);
     tunnel.update_proxies(cfg.proxies);
 
-    // Start the tunnel's background tasks — currently just the UDP NAT
-    // sweeper, which evicts sessions idle > DEFAULT_UDP_IDLE (60 s) every
-    // DEFAULT_SWEEP_INTERVAL (15 s). Without this call the `nat_table` (and
-    // the `reply_readers` set + detached reader tasks the FFI keys off it)
-    // grows monotonically under UDP flow churn: every new 5-tuple inserts an
-    // `Arc<UdpSession>` that is only removed on a reader-task exit that a
-    // quiet session (one-shot DNS, abandoned QUIC, dead upstream) never
+    // Start the tunnel's background tasks — the UDP NAT sweeper, which evicts
+    // sessions idle > DEFAULT_UDP_IDLE (60 s) every DEFAULT_SWEEP_INTERVAL
+    // (15 s), plus the 1 s stats-sampling ticker. Without the sweeper the
+    // `nat_table` (and the `reply_readers` set + detached reader tasks the FFI
+    // keys off it) grows monotonically under UDP flow churn: every new 5-tuple
+    // inserts an `Arc<UdpSession>` that is only removed on a reader-task exit
+    // that a quiet session (one-shot DNS, abandoned QUIC, dead upstream) never
     // reaches. Over hours that slow growth crosses the ~50 MB NE jetsam cap
     // and the PacketTunnel is killed. `meow-app` calls this after building
-    // its tunnel; the FFI must too. Idempotent — invoked once per engine.
+    // its tunnel; the FFI must too.
     //
-    // `start()` runs on the main thread, OUTSIDE the tokio runtime, and
-    // `spawn_background_tasks` uses a bare `tokio::spawn` (unlike the
+    // We do NOT call upstream `Tunnel::spawn_background_tasks`: its stats
+    // ticker holds a STRONG `Arc<Statistics>` and loops forever with no exit
+    // condition, so every engine start→stop cycle would leak one task plus one
+    // retained `Statistics` — unbounded across in-place restarts. Spawn both
+    // tasks ourselves instead: the sweeper is already Weak-gated upstream
+    // (exits when the nat table drops), and our ticker holds a `Weak` and
+    // exits once this generation's `Statistics` is dropped on engine stop.
+    //
+    // `start()` runs on the main thread, OUTSIDE the tokio runtime, and both
+    // spawns use a bare `tokio::spawn` (unlike the
     // `get_engine_runtime().spawn(...)` callsites below, which carry their own
-    // handle). Enter the runtime context for the call so the sweeper task
-    // lands on the meow-engine runtime instead of panicking with "no reactor
-    // running". The guard only needs to outlive the spawn.
+    // handle). Enter the runtime context for the call so the tasks land on the
+    // meow-engine runtime instead of panicking with "no reactor running". The
+    // guard only needs to outlive the spawn.
     {
         let _enter = crate::get_engine_runtime().enter();
-        tunnel.spawn_background_tasks();
+        meow_tunnel::udp::spawn_nat_sweeper(
+            &tunnel.inner().nat_table,
+            meow_tunnel::udp::DEFAULT_UDP_IDLE,
+            meow_tunnel::udp::DEFAULT_SWEEP_INTERVAL,
+        );
+        let weak_stats = Arc::downgrade(tunnel.statistics());
+        tokio::spawn(async move {
+            let mut ticker = tokio::time::interval(std::time::Duration::from_secs(1));
+            // Consume tokio's immediate first tick; the first rate bucket is a
+            // real one-second interval, matching upstream's ticker.
+            ticker.tick().await;
+            loop {
+                ticker.tick().await;
+                let Some(stats) = weak_stats.upgrade() else {
+                    break;
+                };
+                stats.sample_traffic();
+            }
+        });
     }
 
     let stats = tunnel.statistics().clone();
@@ -346,7 +377,7 @@ pub fn start(config_path: &str) -> Result<()> {
             addr,
             cfg.api.secret.clone(),
             config_path.to_string(),
-            raw_config,
+            raw_config.clone(),
             log_tx,
             proxy_providers,
             rule_providers,
@@ -376,9 +407,37 @@ pub fn start(config_path: &str) -> Result<()> {
         tunnel,
         mixed_dial_addr,
         dns_dial_addr,
+        raw_config,
         api_task,
         listener_tasks,
     });
+    Ok(())
+}
+
+/// Hot-reload mode/rules/proxies from `config_path` into the running engine.
+///
+/// Unlike `stop` → `start`, existing flows are NOT closed: in-flight
+/// connection handlers hold `Arc` clones of the old route table and drain
+/// naturally, only new flows see the new table — no DNS blackout, no TUN
+/// disruption. Selector-group state resets (the proxies map is rebuilt), so
+/// the host app must replay persisted selections after a successful reload.
+///
+/// Deliberately NOT reloaded (they are bound once at `start`): listeners,
+/// the DNS server/resolver, fake-IP, and the REST controller itself. Changes
+/// to those still require a stop→start. Proxy/rule *providers* are also
+/// start-time state here; a reload swaps only the inline rules/proxies.
+pub fn reload(config_path: &str) -> Result<()> {
+    // Load + validate BEFORE touching the running engine: on a parse or
+    // semantic error the old config keeps running untouched.
+    let cfg = load_stripped_config(config_path)?;
+
+    let guard = slot().lock();
+    let state = guard.as_ref().context("engine not running")?;
+    state.tunnel.set_mode(cfg.general.mode);
+    state.tunnel.update_proxies(cfg.proxies);
+    state.tunnel.update_rules(cfg.rules);
+    *state.raw_config.write() = cfg.raw;
+    info!("meow-rs engine config hot-reloaded");
     Ok(())
 }
 

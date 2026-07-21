@@ -119,6 +119,10 @@ struct SettingsView: View {
                     Button("Install NE profile") { Task { await vpnManager.refresh() } }
                     Button("Connect (no profile required)") { Task { await vpnManager.connect() } }
                     Button("Disconnect", role: .destructive) { Task { await vpnManager.disconnect() } }
+                    // Hot config reload (mode/rules/proxies swapped in the
+                    // running engine, no flow drop); falls back to an in-place
+                    // restart if the reload fails and the config validates.
+                    Button("Reload engine config") { ipcBridge.send(.reload) }
                     NavigationLink("Open Diagnostics") {
                         DiagnosticsPanelView()
                             .ignoresSafeArea(edges: .bottom)

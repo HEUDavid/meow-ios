@@ -16,11 +16,20 @@ final class AppIPCBridge {
 
     private var stateObserver: DarwinObserver?
     private var trafficObserver: DarwinObserver?
+    private var reloadedObserver: DarwinObserver?
     private var mockTrafficTask: Task<Void, Never>?
 
     /// Optional hook for long-lived consumers (e.g. the Utility traffic chart)
     /// that must keep sampling while the Traffic screen is off-screen.
     var onTrafficDidUpdate: ((TrafficSnapshot) -> Void)?
+
+    /// Fired when the engine's config state was reset without a NEVPNStatus
+    /// transition — either an in-place engine restart (a new `startedAt`
+    /// generation while the stage stays `.connected`) or a hot config reload
+    /// (the extension's `reloaded` notification). Both rebuild the engine's
+    /// proxy groups, so consumers that re-sync engine state after a start
+    /// (proxy-selection replay) must listen here too.
+    var onEngineDidRestart: (() -> Void)?
 
     func start() {
         if Self.usesMockIPC {
@@ -36,6 +45,9 @@ final class AppIPCBridge {
         trafficObserver = DarwinBridge.addObserver(for: .traffic) { [weak self] in
             Task { @MainActor in self?.reloadTraffic() }
         }
+        reloadedObserver = DarwinBridge.addObserver(for: .reloaded) { [weak self] in
+            Task { @MainActor in self?.onEngineDidRestart?() }
+        }
     }
 
     func stop() {
@@ -43,8 +55,10 @@ final class AppIPCBridge {
         mockTrafficTask = nil
         stateObserver.map { DarwinBridge.removeObserver($0) }
         trafficObserver.map { DarwinBridge.removeObserver($0) }
+        reloadedObserver.map { DarwinBridge.removeObserver($0) }
         stateObserver = nil
         trafficObserver = nil
+        reloadedObserver = nil
     }
 
     /// Post an intent to the extension. The extension reads it on the next
@@ -71,7 +85,14 @@ final class AppIPCBridge {
 
     private func reloadState() {
         if let state = SharedStore.readState() {
+            let previous = currentState
             currentState = state
+            if previous.stage == .connected,
+               state.stage == .connected,
+               state.startedAt != previous.startedAt
+            {
+                onEngineDidRestart?()
+            }
         }
     }
 

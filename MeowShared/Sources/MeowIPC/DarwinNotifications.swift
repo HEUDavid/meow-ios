@@ -8,6 +8,7 @@ public enum MeowNotification: String, Sendable {
     case command = "com.meow.vpn.command"
     case state = "com.meow.vpn.state"
     case traffic = "com.meow.vpn.traffic"
+    case reloaded = "com.meow.vpn.reloaded"
 
     public var cfName: CFNotificationName {
         CFNotificationName(rawValue as CFString)

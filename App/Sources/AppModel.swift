@@ -68,6 +68,15 @@ final class AppModel {
                 await self?.replaySelectedProxies()
             }
         }
+        // In-place engine restarts and hot config reloads (the `reload`
+        // intent) never transition NEVPNStatus, so `onConnected` doesn't fire —
+        // but the rebuilt engine still resets proxy-group selections to YAML
+        // defaults. Replay on the signals the extension sends for both paths.
+        ipcBridge.onEngineDidRestart = { [weak self] in
+            Task { @MainActor in
+                await self?.replaySelectedProxies()
+            }
+        }
         try? FileManager.default.createDirectory(at: AppGroup.meowConfigDir, withIntermediateDirectories: true)
         AppGroup.configureBackup()
         GeoAssetStager.stageIfNeeded()

@@ -297,6 +297,29 @@ pub extern "C" fn meow_engine_is_running() -> c_int {
     }
 }
 
+/// Hot-reload mode/rules/proxies from `config_path` into the running engine
+/// without stopping listeners, DNS, or any in-flight flow. Returns 0 on
+/// success, -1 on error (inspect `meow_core_last_error`) — on error the old
+/// configuration keeps running untouched.
+///
+/// # Safety
+/// `config_path` must point to a NUL-terminated UTF-8 string.
+#[no_mangle]
+pub unsafe extern "C" fn meow_engine_reload(config_path: *const c_char) -> c_int {
+    let Some(path) = cstr_to_str(config_path) else {
+        set_error("config_path is null or not utf-8".into());
+        return -1;
+    };
+    logging::bridge_log(&format!("meow_engine_reload: {}", path));
+    match engine::reload(path) {
+        Ok(()) => 0,
+        Err(e) => {
+            set_error(format!("engine reload failed: {}", e));
+            -1
+        }
+    }
+}
+
 /// Validate a Clash YAML config. Returns 0 on success, -1 on error.
 ///
 /// # Safety

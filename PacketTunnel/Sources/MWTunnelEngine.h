@@ -10,6 +10,16 @@
 /// Blocking: runs engine + tun2socks start FFI calls. Call on a background queue.
 - (BOOL)startWithError:(NSError **)error;
 
+/// Blocking: restarts engine + tun2socks in-place, keeping the TUN interface,
+/// the packet read loop, and the writer context alive. Call on the engine
+/// control queue.
+- (BOOL)restartWithError:(NSError **)error;
+
+/// Blocking: hot-reloads mode/rules/proxies into the running engine — no flow
+/// drop, no DNS blackout. On failure the old configuration keeps running
+/// untouched. Call on the engine control queue.
+- (BOOL)reloadConfigWithError:(NSError **)error;
+
 /// Stops engine, tun2socks, ingress loop, traffic pump.
 - (void)stop;
 

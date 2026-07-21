@@ -46,7 +46,8 @@ static const int kLocalDNSPort                 = 1053;
     // Bumped on terminal stop. A readPackets completion handler captures the
     // epoch when it arms and drops itself if the epoch advanced in the meantime,
     // so an in-flight handler from a stopped generation cannot ingest stale
-    // packets or re-arm a second concurrent read chain.
+    // packets or re-arm a second concurrent read chain. In-place restarts
+    // intentionally keep this read chain alive (see restartWithError:).
     _Atomic uint64_t _ingressEpoch;
     _Atomic int64_t _ingressPackets;
     dispatch_source_t _trafficTimer;
@@ -157,6 +158,73 @@ static const int kLocalDNSPort                 = 1053;
 
     [self startIngressLoop];
     [self startTrafficPump];
+    return YES;
+}
+
+// MARK: - Restart
+
+- (BOOL)restartWithError:(NSError **)error {
+    if (!_started) {
+        if (error) *error = [NSError errorWithDomain:@"MWTunnelEngine"
+                                                code:3
+                                            userInfo:@{NSLocalizedDescriptionKey: @"engine not started"}];
+        return NO;
+    }
+
+    os_log_info(gLog, "engine: restart entry");
+
+    [self stopTrafficPump];
+    if (_tunStarted) {
+        meow_tun_stop_blocking();
+        _tunStarted = NO;
+    }
+    meow_engine_stop();
+
+    if (![self startRuntimeWithError:error]) {
+        atomic_store_explicit(&_ingressRunning, NO, memory_order_relaxed);
+        atomic_fetch_add_explicit(&_ingressEpoch, 1, memory_order_relaxed);
+        [self releaseWriterContext];
+        _started = NO;
+        return NO;
+    }
+
+    // Do not call startIngressLoop here. The original readPackets chain remains
+    // armed across the in-place restart; arming another read on the same
+    // NEPacketTunnelFlow can violate the one-read-at-a-time contract.
+    [self startTrafficPump];
+    return YES;
+}
+
+// MARK: - Hot reload
+
+- (BOOL)reloadConfigWithError:(NSError **)error {
+    if (!_started) {
+        if (error) *error = [NSError errorWithDomain:@"MWTunnelEngine"
+                                                code:6
+                                            userInfo:@{NSLocalizedDescriptionKey: @"engine not started"}];
+        return NO;
+    }
+
+    os_log_info(gLog, "engine: hot reload entry");
+
+    // Re-patch first so the reload picks up the same prefs (mixed port,
+    // allowLan) a cold start would. Note the engine only applies
+    // mode/rules/proxies from this file — listener/DNS pins stay as bound at
+    // start (see meow_engine_reload docs).
+    MWPreferences *prefs = [MWPreferences loadFromDefaults:[MWAppGroup defaults]];
+    if (![self writeEffectiveConfigWithPrefs:prefs error:error]) {
+        return NO;
+    }
+
+    NSString *configPath = [MWAppGroup effectiveConfigURL].path;
+    int rc = meow_engine_reload(configPath.UTF8String);
+    if (rc != 0) {
+        NSString *msg = [self lastRustError] ?: @"engine reload failed";
+        if (error) *error = [NSError errorWithDomain:@"MWTunnelEngine"
+                                                code:7
+                                            userInfo:@{NSLocalizedDescriptionKey: msg}];
+        return NO;
+    }
     return YES;
 }
 
