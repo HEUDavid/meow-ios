@@ -1,7 +1,7 @@
 # meow-ios Project Plan
 
-**Version:** 1.4  
-**Date:** 2026-04-18  
+**Version:** 1.7  
+**Date:** 2026-07-28  
 **Status:** Draft  
 **Changelog:**
 - v1.1 — Removed Go toolchain (T0.5) and Phase 2 (Go Core). All engine functionality in single Rust `MeowCore.xcframework` via meow-rs.
@@ -10,6 +10,7 @@
 - v1.4 — Automated E2E scope retired per user directive 2026-04-18. T6.5 (Nightly E2E Gate, vphone-cli harness) deleted. T2.6 no longer flagged as nightly gate blocker — now feeds a manual on-device smoke owned by the user. T2.8 reframed from automated E2E smoke to manual device smoke. T6.3 UI Tests scope clarified: unit-level UI only, not full-tunnel. M1.5 milestone row rewritten to "Manual Smoke Passes". Critical path updated — nightly gate removed. Self-hosted runner docs, `nightly.yml`, tart/vphone scripts, LocalE2ETests target all queued for deletion in a separate QA-led audit PR.
 - v1.5 — T4.10 (User-Facing Diagnostics Screen) deferred from M4 to M5 per team-lead directive 2026-04-18. Architectural addendum added to §T4.10 documenting the process-affinity constraint on 2/3 FFIs (`meow_engine_test_proxy_http`, `meow_engine_test_dns` gate on `engine::tunnel()` which is `Some` only inside the PacketTunnel extension process). M4 close-out diff: T4.7, T4.8, T4.9, T4.11, T4.12 shipped; T4.10 moved to M5 alongside Traffic + UDP work that already requires extension-side surface area.
 - v1.6 — Added T4.13 (Proxy Groups Subview): proxy group list moves out of Home into a dedicated pushed view; Home shows only a count + navigation row. Amends T4.2 acceptance.
+- v1.7 — Memory-cap machinery removed (2026-07-28, user directive): T2.6 panel is 4 checks (`MEM_OK` deleted), T6.4's ≤ 40 MB / 50 MB resident-memory budget replaced with observation-only guidance, M1.5 milestone wording updated. The OS's ~50 MB jetsam limit remains a documented platform constraint.
 
 ---
 
@@ -361,7 +362,7 @@ This plan translates the PRD milestones into a concrete, dependency-ordered task
 - Subscription seeder + NE-error-surface UX tests: **retired with LocalE2ETests** (v1.4)
 
 #### T6.4 — Performance Tests
-- **Extension resident memory during active VPN:** target ≤ 40 MB; hard-fail at 50 MB (TEST_STRATEGY v1.2)
+- **Extension resident memory during active VPN:** observed via the Settings About/Memory IPC channel and the memstats log line — no self-imposed pass/fail budget; the OS's ~50 MB jetsam limit is the only cap (TEST_STRATEGY §8.1)
 - **MeowCore.xcframework stripped binary size:** ≤ 8 MB (TEST_STRATEGY v1.2); enforced in T1.4 CI step
 - Battery usage (Instruments Energy Log, 1-hour session)
 - TUN throughput (iperf3 through proxy, target: ≥ 100 Mbps on WiFi)

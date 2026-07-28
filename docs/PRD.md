@@ -1,7 +1,7 @@
 # meow-ios Product Requirements Document
 
-**Version:** 1.4  
-**Date:** 2026-04-18  
+**Version:** 1.5  
+**Date:** 2026-07-28  
 **Author:** Architecture Team  
 **Status:** Draft  
 **Changelog:**
@@ -9,6 +9,7 @@
 - v1.2 — Added §4.4 Diagnostics Surface Contract (OCR-stable label format for QA nightly harness). Memory budget tightened to TEST_STRATEGY v1.2: Extension ≤40 MB / 50 MB hard-fail; xcframework ≤8 MB.
 - v1.3 — Removed `meow-listener` crate from Rust dependency list (not needed in in-process path). Noted subscription conversion (`src/subscription.rs`) and diagnostics (`src/diagnostics.rs`) as Rust-native replacements for old Go paths. Added non-DNS UDP gap as MVP known limitation and new risk row.
 - v1.4 — Automated E2E scope retired per user directive 2026-04-18: vphone-cli nightly harness, tart-in-harness topology, and LocalE2ETests (Option 2 seeder + NE-error-surface) all dropped in favor of manual device verification on user's iPhone. §4.4 retitled to reflect manual-QA framing (label format stays useful for on-device readability; OCR contract removed). M1.5 milestone rewritten from "Nightly Gate Unblocked" to "Manual Smoke Passes".
+- v1.5 — Memory-cap machinery removed (2026-07-28, user directive): §4.4 `MEM_OK` diagnostics row deleted (panel is 4 checks), and the v1.2 memory budget (≤ 40 MB / 50 MB hard-fail) dropped from §7 and the §8 risk table. The OS's ~50 MB jetsam limit stays documented as a platform constraint; memory is observed via the About/Memory IPC channel and logging, not gated.
 
 ---
 
@@ -648,7 +649,7 @@ Both app target and PacketTunnel extension must share:
 
 ### Milestone 6: Testing & App Store Submission (Weeks 11–12)
 - Full regression test pass on physical devices (iPhone running iOS 17+)
-- Performance profiling (memory target ≤40 MB, hard-fail 50 MB)
+- Performance profiling
 - App Store metadata, screenshots, privacy policy
 - TestFlight beta
 - App Store submission
@@ -659,7 +660,7 @@ Both app target and PacketTunnel extension must share:
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| Network Extension memory limit | High | Critical | **Budget (TEST_STRATEGY v1.2):** Extension resident ≤ 40 MB PASS / ≥ 50 MB hard-fail; MeowCore.xcframework stripped ≤ 8 MB. Both enforced as CI gates (T1.4 size check; T6.4 runtime measure). Rust release profile: `lto = "fat"`, `opt-level = "z"`, `strip = "symbols"`. Profile with Instruments Memory Graph in M1. |
+| Network Extension memory limit | High | Critical | The ~50 MB jetsam limit is the OS's, not a budget we enforce — no self-imposed memory pass/fail gates. Mitigated structurally: pure-Rust engine (no Go runtime), Rust release profile `lto = "fat"`, `opt-level = "z"`, `strip = "symbols"`; MeowCore.xcframework stripped ≤ 8 MB (T1.4 CI size check). Memory observed via Settings About/Memory (IPC `0x03`), the memstats log line, `stress_rss.rs` leak-regression tests, and Instruments. |
 | **Non-DNS UDP not forwarded (M0/M1 gap)** | **Confirmed** | **Medium** | **QUIC/HTTP3 degrades to TCP HTTP/2 (usually transparent); UDP-only apps break silently. Disclosed in M0 release notes. Patched in M1 via T2.9 (wire netstack-smoltcp UDP → `meow_tunnel::udp::handle_udp`). Prerequisite: upstream meow-rs UDP API maturity check.** |
 | meow-rs protocol coverage | Resolved | Low | Audit complete: meow-rs v0.6.1 ships SS / Trojan / VLESS outbounds (plus HTTP / SOCKS5 / Direct / Reject). VMess, WireGuard, TUIC, Hysteria 2 are out of scope for M1 — defer or upstream-contribute post-M1. |
 | Rust binary size with all meow-rs crates | Medium | Medium | Use `cargo bloat`; enable LTO + `opt-level = "z"`; disable unused feature flags; CI hard-fails if xcframework > 8 MB |

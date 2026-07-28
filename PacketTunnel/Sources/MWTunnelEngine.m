@@ -13,19 +13,12 @@
 
 static os_log_t gLog;
 
-// Phys-footprint soft cap: jetsam on the NE extension hits around 50 MiB on
-// recent iOS. When footprint reaches this threshold we nudge the allocator to
-// return free pages to the OS rather than restarting the engine — a restart
-// disrupts active connections and resets in-memory state for marginal gain.
-static const NSInteger kSoftCapFootprintMB    = 35;
-static const NSTimeInterval kReliefCooldownS  = 60.0;
-
 // Proactive-reclaim trigger for a TCP teardown burst. When a batch of flows
 // closes together — network handoff (Wi-Fi↔cellular), reconnect, or the app
 // dropping a page full of connections — their relay buffers (owned by meow's
 // `copy_bidirectional_buf`) free at once. That is the peak-fragmentation
 // moment: lots of just-freed pages the allocator is still holding. Returning
-// them now, rather than waiting up to the soft-cap watchdog, keeps the
+// them now, rather than waiting for the next periodic relief, keeps the
 // footprint low while the extension is awake. We trigger off a drop in
 // `tcp_conns` (a clean integer count) rather than malloc's free-heap figure,
 // which includes non-resident reserved address space and reads larger than the
@@ -55,7 +48,6 @@ static const int kLocalDNSPort                 = 1053;
     int64_t _lastDown;
     NSTimeInterval _lastTime;
     int _pumpTick;
-    NSTimeInterval _lastReliefAttempt;  // CFAbsoluteTime; 0 = never
     int64_t _lastTcpConns;              // prev snapshot's tcp_conns, for teardown-burst detection
     NSTimeInterval _lastTeardownRelief; // CFAbsoluteTime; 0 = never
 }
@@ -377,9 +369,8 @@ static const int kLocalDNSPort                 = 1053;
     // Proactive reclaim on a TCP teardown burst (see kTeardownBurstFlows). A
     // sharp drop in live connections means a batch of relay buffers just
     // freed; return those pages immediately rather than waiting for the next
-    // periodic relief or the soft-cap watchdog. The cooldown bounds this to at
-    // most one extra relief per kTeardownCooldownS so steady churn can't thrash
-    // the allocator.
+    // periodic relief. The cooldown bounds this to at most one extra relief
+    // per kTeardownCooldownS so steady churn can't thrash the allocator.
     if (_lastTcpConns - tcpConns >= kTeardownBurstFlows &&
         (now - _lastTeardownRelief) >= kTeardownCooldownS) {
         os_log_info(gLog,
@@ -389,8 +380,6 @@ static const int kLocalDNSPort                 = 1053;
         _lastTeardownRelief = now;
     }
     _lastTcpConns = tcpConns;
-
-    [self maybeRelieveFootprintPressure:footprintMB now:now];
 
     NSTimeInterval epoch = now + NSTimeIntervalSince1970;
     NSDictionary *snapshot = @{
@@ -414,21 +403,6 @@ static const int kLocalDNSPort                 = 1053;
         return;
     }
     [MWDarwinBridge post:MWNotificationTraffic];
-}
-
-// MARK: - Soft-cap watchdog
-
-- (void)maybeRelieveFootprintPressure:(NSInteger)footprintMB now:(NSTimeInterval)now {
-    if (footprintMB < kSoftCapFootprintMB) return;
-    if (_lastReliefAttempt > 0 && (now - _lastReliefAttempt) < kReliefCooldownS) {
-        return;
-    }
-    _lastReliefAttempt = now;
-
-    os_log_error(gLog,
-                 "soft-cap: footprint=%ldMB >= %ldMB, calling malloc_zone_pressure_relief",
-                 (long)footprintMB, (long)kSoftCapFootprintMB);
-    malloc_zone_pressure_relief(NULL, 0);
 }
 
 // MARK: - Config patching
