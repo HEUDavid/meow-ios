@@ -3,9 +3,8 @@ import MeowModels
 
 /// Payload used between the app (DiagnosticsViewController) and the
 /// PacketTunnel extension's `handleAppMessage`. The extension is the only
-/// process that can answer the PRD §4.4 checks: four of them need the
-/// meow-rs engine runtime, and `MEM_OK` needs `task_info` on the
-/// extension's own mach task.
+/// process that can answer the PRD §4.4 checks: all of them need the
+/// meow-rs engine runtime.
 ///
 /// The protocol is tag-dispatched on the first byte of the request payload:
 ///
@@ -123,28 +122,24 @@ public enum DiagnosticsIPCError: Error, Sendable {
     case tagMismatch
 }
 
-/// Carries one `DiagnosticsResult` per `DiagnosticsCheck`, plus the extension
-/// resident-memory reading used to derive `MEM_OK`. The panel renders this
-/// via `DiagnosticsLabelParser.render(...)`.
+/// Carries one `DiagnosticsResult` per `DiagnosticsCheck`. The panel renders
+/// this via `DiagnosticsLabelParser.render(...)`.
 public struct DiagnosticsReport: Codable, Sendable {
     public var tunExists: DiagnosticsResultWire
     public var dnsOk: DiagnosticsResultWire
     public var tcpProxyOk: DiagnosticsResultWire
     public var http204Ok: DiagnosticsResultWire
-    public var memOk: DiagnosticsResultWire
 
     public init(
         tunExists: DiagnosticsResultWire,
         dnsOk: DiagnosticsResultWire,
         tcpProxyOk: DiagnosticsResultWire,
         http204Ok: DiagnosticsResultWire,
-        memOk: DiagnosticsResultWire,
     ) {
         self.tunExists = tunExists
         self.dnsOk = dnsOk
         self.tcpProxyOk = tcpProxyOk
         self.http204Ok = http204Ok
-        self.memOk = memOk
     }
 
     public func asDictionary() -> [DiagnosticsCheck: DiagnosticsResult] {
@@ -153,7 +148,6 @@ public struct DiagnosticsReport: Codable, Sendable {
             .dnsOk: dnsOk.result,
             .tcpProxyOk: tcpProxyOk.result,
             .http204Ok: http204Ok.result,
-            .memOk: memOk.result,
         ]
     }
 }

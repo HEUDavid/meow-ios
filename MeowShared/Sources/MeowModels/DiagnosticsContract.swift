@@ -15,7 +15,6 @@ public enum DiagnosticsCheck: String, CaseIterable, Sendable {
     case dnsOk = "DNS_OK"
     case tcpProxyOk = "TCP_PROXY_OK"
     case http204Ok = "HTTP_204_OK"
-    case memOk = "MEM_OK"
 }
 
 /// Parsed result of one diagnostics row.

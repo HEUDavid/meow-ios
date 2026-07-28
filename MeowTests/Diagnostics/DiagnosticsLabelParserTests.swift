@@ -15,7 +15,6 @@ struct DiagnosticsLabelParserTests {
         DNS_OK: PASS
         TCP_PROXY_OK: PASS
         HTTP_204_OK: PASS
-        MEM_OK: PASS
         """
         let results = try DiagnosticsLabelParser.parse(input)
         #expect(results.count == DiagnosticsCheck.allCases.count)
@@ -31,14 +30,12 @@ struct DiagnosticsLabelParserTests {
         DNS_OK: FAIL(timeout)
         TCP_PROXY_OK: FAIL(refused)
         HTTP_204_OK: FAIL(status=500)
-        MEM_OK: FAIL(task_info_failed)
         """
         let results = try DiagnosticsLabelParser.parse(input)
         #expect(results[.tunExists] == .pass)
         #expect(results[.dnsOk] == .fail(reason: "timeout"))
         #expect(results[.tcpProxyOk] == .fail(reason: "refused"))
         #expect(results[.http204Ok] == .fail(reason: "status=500"))
-        #expect(results[.memOk] == .fail(reason: "task_info_failed"))
     }
 
     @Test
@@ -47,7 +44,6 @@ struct DiagnosticsLabelParserTests {
         TUN_EXISTS: PASS
         DNS_OK: PASS
         TCP_PROXY_OK: PASS
-        HTTP_204_OK: PASS
         """
         #expect(throws: DiagnosticsLabelParser.ParseError.self) {
             try DiagnosticsLabelParser.parse(input)
@@ -55,13 +51,12 @@ struct DiagnosticsLabelParserTests {
     }
 
     @Test
-    func `rejects unknown key — Dev must not silently add a 6th row`() {
+    func `rejects unknown key — Dev must not silently add a 5th row`() {
         let input = """
         TUN_EXISTS: PASS
         DNS_OK: PASS
         TCP_PROXY_OK: PASS
         HTTP_204_OK: PASS
-        MEM_OK: PASS
         RTT_OK: PASS
         """
         #expect(throws: DiagnosticsLabelParser.ParseError.self) {
@@ -76,7 +71,6 @@ struct DiagnosticsLabelParserTests {
         DNS_OK: PASS
         TCP_PROXY_OK: PASS
         HTTP_204_OK: PASS
-        MEM_OK: PASS
         """
         #expect(throws: DiagnosticsLabelParser.ParseError.self) {
             try DiagnosticsLabelParser.parse(input)
@@ -90,7 +84,6 @@ struct DiagnosticsLabelParserTests {
         DNS_OK: PASS
         TCP_PROXY_OK: PASS
         HTTP_204_OK: PASS
-        MEM_OK: PASS
         """
         #expect(throws: DiagnosticsLabelParser.ParseError.self) {
             try DiagnosticsLabelParser.parse(input)
@@ -105,7 +98,6 @@ struct DiagnosticsLabelParserTests {
         DNS_OK: PASS
         TCP_PROXY_OK: PASS
         HTTP_204_OK: PASS
-        MEM_OK: PASS
         """
         #expect(throws: DiagnosticsLabelParser.ParseError.self) {
             try DiagnosticsLabelParser.parse(input)
@@ -114,7 +106,7 @@ struct DiagnosticsLabelParserTests {
 
     @Test
     func `tolerates trailing whitespace on a row`() throws {
-        let input = "TUN_EXISTS: PASS   \nDNS_OK: PASS\nTCP_PROXY_OK: PASS\nHTTP_204_OK: PASS\nMEM_OK: PASS"
+        let input = "TUN_EXISTS: PASS   \nDNS_OK: PASS\nTCP_PROXY_OK: PASS\nHTTP_204_OK: PASS"
         let results = try DiagnosticsLabelParser.parse(input)
         #expect(results[.tunExists] == .pass)
     }

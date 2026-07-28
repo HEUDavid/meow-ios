@@ -393,7 +393,7 @@ Uses `CodeEditView` (Swift package) or fallback `UITextView` with monospace font
 
 > This section defines the label format for the Debug Diagnostics Panel used during **manual on-device verification** (v1.4, 2026-04-18). Prior v1.2/v1.3 framing around an OCR-stable contract for the vphone-cli nightly harness is superseded — the harness path is retired. The label format is kept because stable, glanceable text still helps the user run the smoke check on their iPhone. **Do not change label key strings unilaterally; they also back accessibilityIdentifier-based unit UI tests.**
 
-The Debug Diagnostics Panel is accessible via `MEOW_DEBUG=1` launch argument or Settings → triple-tap version label (debug builds only). When active, it displays exactly 5 result labels, one per line, in the following fixed format:
+The Debug Diagnostics Panel is accessible via `MEOW_DEBUG=1` launch argument or Settings → triple-tap version label (debug builds only). When active, it displays exactly 4 result labels, one per line, in the following fixed format:
 
 ```
 CHECK_NAME: PASS
@@ -407,7 +407,7 @@ CHECK_NAME: FAIL(<reason>)
 - `FAIL(` is always the literal 5-character prefix; `<reason>` is a short ASCII diagnostic; `)` closes it
 - Labels are rendered in a monospace `UILabel` with `accessibilityIdentifier` matching `CHECK_NAME` (e.g. `"TUN_EXISTS"`) — supports unit-level UI test anchoring and VoiceOver
 
-**The 5 checks in display order:**
+**The 4 checks in display order:**
 
 | # | CHECK_NAME | PASS condition | FAIL examples |
 |---|-----------|----------------|---------------|
@@ -415,7 +415,8 @@ CHECK_NAME: FAIL(<reason>)
 | 2 | `DNS_OK` | `apple.com` resolves to ≥1 A record via 172.19.0.2:53 within 3 s | `FAIL(timeout)`, `FAIL(nxdomain)` |
 | 3 | `TCP_PROXY_OK` | TCP connect to `connectivitycheck.gstatic.com:443` succeeds through proxy within 5 s | `FAIL(timeout)`, `FAIL(refused)` |
 | 4 | `HTTP_204_OK` | HTTP GET `http://connectivitycheck.gstatic.com/generate_204` returns status 204 | `FAIL(status=NNN)`, `FAIL(timeout)` |
-| 5 | `MEM_OK` | Resident-memory reading (`task_info`) succeeds — no footprint threshold; the live value is surfaced via the DiagnosticsIPC memory channel | `FAIL(task_info_failed)` |
+
+> A fifth check, `MEM_OK`, existed through v1.4. It compared `phys_footprint` against a stale "~15 MB NE jetsam limit" figure (the real ceiling is ~50 MB; see PR #140) and was removed — memory usage is surfaced live via the DiagnosticsIPC memory channel (tag `0x03`, Settings → About / Memory) instead of as a pass/fail row.
 
 **Screen layout (fixed, must not reorder):**
 ```
@@ -424,7 +425,6 @@ CHECK_NAME: FAIL(<reason>)
 │  DNS_OK: PASS                            │
 │  TCP_PROXY_OK: PASS                      │
 │  HTTP_204_OK: PASS                       │
-│  MEM_OK: PASS                            │
 │                                          │
 │  [Run Again]                             │
 └──────────────────────────────────────────┘
@@ -615,8 +615,8 @@ Both app target and PacketTunnel extension must share:
 - **Known limitation at M1:** non-DNS UDP not forwarded (QUIC/HTTP3 degraded to TCP); disclosed in release notes
 
 ### Milestone 1.5: Manual Smoke Passes (End of Week 3)
-- T2.6 (Debug Diagnostics Panel) complete; all 5 checks rendering on device with `MEOW_DEBUG=1`
-- User runs manual smoke on their iPhone (iOS 17+ real device) and confirms all 5 checks read `PASS`
+- T2.6 (Debug Diagnostics Panel) complete; all 4 checks rendering on device with `MEOW_DEBUG=1`
+- User runs manual smoke on their iPhone (iOS 17+ real device) and confirms all 4 checks read `PASS`
 - Gate is user sign-off, not an automated assertion; vphone-cli nightly harness is retired (v1.4)
 
 ### Milestone 2: VPN Toggle + Basic UI (Weeks 4–5)
