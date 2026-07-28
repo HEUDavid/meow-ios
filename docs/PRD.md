@@ -417,7 +417,7 @@ CHECK_NAME: FAIL(<reason>)
 | 3 | `TCP_PROXY_OK` | TCP connect to `connectivitycheck.gstatic.com:443` succeeds through proxy within 5 s | `FAIL(timeout)`, `FAIL(refused)` |
 | 4 | `HTTP_204_OK` | HTTP GET `http://connectivitycheck.gstatic.com/generate_204` returns status 204 | `FAIL(status=NNN)`, `FAIL(timeout)` |
 
-> A fifth check, `MEM_OK`, existed through v1.4. It compared `phys_footprint` against a stale "~15 MB NE jetsam limit" figure (the real ceiling is ~50 MB; see PR #140) and was removed — memory usage is surfaced live via the DiagnosticsIPC memory channel (tag `0x03`, Settings → About / Memory) instead of as a pass/fail row.
+> A fifth check, `MEM_OK`, existed through v1.4 and was removed — memory usage is surfaced live via the DiagnosticsIPC memory channel (tag `0x03`, Settings → About / Memory) instead of as a pass/fail row.
 
 **Screen layout (fixed, must not reorder):**
 ```

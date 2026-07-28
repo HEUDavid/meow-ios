@@ -228,11 +228,10 @@ jobs:
           #
           # Binary on-disk is only a PROXY heuristic (TEST_STRATEGY §8.1). The
           # OS enforces a ~50 MB resident-memory jetsam limit on the NE process
-          # (NOT the stale ~15 MB this comment used to cite; corrected per
-          # PR #140) — that's the system's cap, not a gate we run. Code is
-          # demand-paged, so an 11 MB binary is nowhere near 11 MB resident
-          # (measured RSS under sustained TCP-flow churn is ~31 MB). This gate
-          # just guards against runaway on-disk bloat.
+          # — that's the system's cap, not a gate we run. Code is demand-paged,
+          # so an 11 MB binary is nowhere near 11 MB resident (measured RSS
+          # under sustained TCP-flow churn is ~31 MB). This gate just guards
+          # against runaway on-disk bloat.
           LIMIT=$((20 * 1024 * 1024))
           WARN=$((18 * 1024 * 1024))
           SIZE=$(stat -f %z "$BIN")
