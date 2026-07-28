@@ -1,11 +1,12 @@
 # meow-ios Test Strategy & Quality Plan
 
-**Version:** 1.2.1
-**Date:** 2026-04-17
+**Version:** 1.4
+**Date:** 2026-07-28
 **Author:** QA Lead
 **Status:** Draft
 **Applies to:** meow-ios v1.0 (MVP — see `PRD.md` §3.1)
 **Changelog:**
+- v1.4 — Self-imposed memory budgets removed (2026-07-28, user directive): the ≤ 40 MB / ≥ 50 MB resident-memory ship-blocker gates, the 45 MB peak target, and the §4.2 idle-footprint row are gone. The OS's ~50 MB jetsam limit remains documented as a platform fact; memory is now observed (About/Memory IPC, memstats log line, `stress_rss.rs` leak-regression tests, Instruments) rather than gated. §8.1 rewritten accordingly; §12 risk row and §13 exit criteria updated. The `PacketTunnel.appex` ≤ 20 MB on-disk size gate is unchanged.
 - v1.3 — Automated E2E + XCUITest scaffolding retired in sync with PRD v1.4 / PROJECT_PLAN v1.4 T6.5 retirement (2026-04-18, user directive "remove e2e tests"). §5 *UI Test Plan (XCUITest)* and §7 *Device-class E2E via vphone-cli in a Tart VM* both replaced with 2-line retirement stubs; coverage moves to PROJECT_PLAN T2.8 manual-smoke on user's iPhone. §11.1 `nightly.yml` subsection + `ui-test` CI job removed; §11.3 `SLACK_WEBHOOK_URL` row removed; §11.5 required-checks list drops `ui-test`. Scattered refs across §1/§2/§6/§8/§11/§12/§13/§14 updated. 5-check gate content (§6.2) retained as the manual-smoke checklist — PRD v1.4 §4.4 retained the label format for on-device readability. `docs/RUNNER.md` + `docs/TEST_FIXTURES.md` deleted (superseded). Apple Team ID / ASC key ID / Issuer ID placeholders now `<TEAM_ID>` / `<ASC_KEY_ID>` / `<ISSUER_ID>` throughout (pre-public redaction; CI still resolves via secrets). Section numbering preserved (no ripple renumber).
 - v1.2.1 — Post-rebase cleanup after Dev's Rust-unification + PRD v1.3 landing: §11.1 CI pipeline collapses `build-rust`+`build-go` → single `build-core` producing `MeowCore.xcframework`, adds explicit `size-check` job (§8.1 8 MB gate), drops `govulncheck`. §11.1 `nightly.yml` description now matches the Tart/vphone-cli flow actually in `.github/workflows/nightly.yml`. Editorial: removed the last "Go engine" / "Rust+Go bridge" references in §1/§4.1/§6.3 to align with PRD v1.3 pure-Rust architecture. No strategy changes; only stale refs corrected.
 - v1.2 — Added §7 *Device-class E2E via vphone-cli in a SIP-disabled Tart VM* (replaces the earlier "tethered iPhone" nightly model). Tightened §8.1 memory budget: Extension resident ≤ 40 MB with a 50 MB hard ceiling (enforced as a ship-blocker test) to live inside the iOS NE memory limit. Tightened `MeowCore.xcframework` stripped size budget to ≤ 8 MB. Renumbered §7–§13 → §8–§14.
@@ -22,7 +23,7 @@ Guiding principles:
 1. **Test close to the hardware.** Any test that exercises `NEPacketTunnelProvider`, FFI, or the App Group container must run on a real device or simulator — never mocked out at the boundary.
 2. **Parity with Android where it matters.** The Android `test-e2e.sh` (see `/Volumes/DATA/workspace/meow-go/test-e2e.sh`) sets the bar: TUN interface up, DNS resolves, TCP/HTTP flows. We reproduce that five-check gate on iOS as a manual pre-release smoke on a physical device (PROJECT_PLAN v1.4 T2.8; see §6.2).
 3. **Fail closed on security regressions.** Security checks (ATS, Keychain, no plaintext secrets) run on every PR — not in the release pipeline only.
-4. **Performance is a first-class acceptance criterion.** Extension memory is hard-capped by iOS at ~50 MB; our budget is ≤ 40 MB PASS / ≥ 50 MB hard-fail (§8.1). A regression here is a ship-blocker, not a polish item.
+4. **Performance is a first-class acceptance criterion.** Extension memory is hard-capped by iOS at ~50 MB — a system jetsam kill, not a budget we set. There is no self-imposed memory pass/fail gate; §8.1 describes how memory is observed (Instruments, the memstats log line, the Settings About/Memory IPC channel).
 5. **Shift-left for FFI.** The Swift↔C boundary into `MeowCore.xcframework` is the highest-risk surface. Cover it with unit tests at the C ABI layer (see §3.1) before building UI on top.
 
 ---
@@ -206,7 +207,6 @@ These tests live in the extension target's `PacketTunnelTests` bundle (runs insi
 | REST API reachable | `GET http://127.0.0.1:9090/version` from inside extension returns `meow_engine_version()` output |
 | In-process tun2socks ↔ engine channel | Packet sent into TUN fd appears on upstream proxy socket within 20ms median (no loopback hop) |
 | DoH bootstrap | `meow_test_dns_resolver("https://1.1.1.1/dns-query")` returns 0 with at least one resolved IP |
-| Memory footprint after 60s idle | `proc_task_info` reports < 40 MB resident — must stay well under the ~50 MB iOS ceiling |
 
 ### 4.3 IPC Between App and Extension
 
@@ -305,22 +305,18 @@ Test pass criterion per protocol: all 5 connectivity checks pass, and the meow-r
 
 ## 8. Performance Benchmarks
 
-All benchmarks run on iPhone 14 (minimum supported device) on iOS 26. E2E-adjacent perf (memory ceilings, connection-setup latency) is spot-checked on the developer's physical device during the manual pre-release smoke (PROJECT_PLAN v1.4 T2.8; §6.2).
+All benchmarks run on iPhone 14 (minimum supported device) on iOS 26. E2E-adjacent perf (connection-setup latency) is spot-checked on the developer's physical device during the manual pre-release smoke (PROJECT_PLAN v1.4 T2.8; §6.2).
 
 ### 8.1 Memory
 
-The iOS NetworkExtension process is capped at **~50 MB resident memory** by the system — exceeding it is a hard jetsam kill with no recovery. This is the single largest architectural constraint on meow-ios and the reason we moved from Go mihomo to pure-Rust meow-rs (PRD v1.1). Our test targets are therefore tight, and the "ceiling" test is a ship-blocker.
+The iOS NetworkExtension process is capped at **~50 MB resident memory** by the system — exceeding it is a hard jetsam kill with no recovery. This is the single largest architectural constraint on meow-ios and the reason we moved from Go mihomo to pure-Rust meow-rs (PRD v1.1). It is the OS's limit, not a budget we enforce: there are no self-imposed memory pass/fail targets. Memory is *observed*, not gated:
+
+- **On device:** the Settings About/Memory row (DiagnosticsIPC tag `0x03`, `phys_footprint`), the per-tick `memstats` log line (`footprint=`, `heap_used=`, `heap_free=`, `tcp_conns=`), and Instruments Allocations during the manual pre-release smoke (T2.8).
+- **In CI/tests:** the hermetic leak-regression tests in `core/rust/meow-ios-ffi/tests/stress_rss.rs` (start/stop cycles and ingest bursts must not grow RSS unboundedly), plus the binary-size gate below.
 
 | Metric | Target | Measurement |
 |--------|--------|-------------|
-| Extension resident memory at idle (60s post-connect) | ≤ **40 MB** | `task_info` via Instruments Allocations; ship-blocker |
-| Extension peak memory under load (100 Mbps sustained, 60s) | ≤ **45 MB** | Instruments Allocations — any sample ≥ 50 MB fails build |
-| Extension memory headroom stress test | No jetsam over 30 min at 50 Mbps + 200 concurrent connections | Instruments Allocations + `log stream` for jetsam events |
-| `PacketTunnel.appex` stripped binary | ≤ **20 MB** (soft warn at 18 MB) | CI gate via `stat` in `ci.yml` size-budget step. Raised 8 → 10 MB (2026-05, meow-rs v0.7.x) → 20 MB (2026-05, meow-rs v0.11 + boring-tls/ECH; BoringSSL is vendored for ECH/uTLS, current ~11.1 MB) — generous headroom so routine bumps don't re-trip this proxy gate. The actual ship constraint is the row above (extension RSS ~50 MB cap; measured ~31 MB under load); binary size is only a proxy heuristic — code is demand-paged, so on-disk size ≠ resident size |
-| App-side memory at idle | ≤ 80 MB | Instruments Allocations |
-| Memory growth after 1h session | ≤ +0.5 MB in extension; ≤ +10 MB in app | Identify leaks via Instruments Leaks |
-
-The 40 MB target leaves a 10 MB cushion below the ~50 MB jetsam threshold. The 45 MB peak row is the hard tolerance under burst — anything ≥ 50 MB is in the kill zone, with no recovery.
+| `PacketTunnel.appex` stripped binary | ≤ **20 MB** (soft warn at 18 MB) | CI gate via `stat` in `ci.yml` size-budget step. Raised 8 → 10 MB (2026-05, meow-rs v0.7.x) → 20 MB (2026-05, meow-rs v0.11 + boring-tls/ECH; BoringSSL is vendored for ECH/uTLS, current ~11.1 MB) — generous headroom so routine bumps don't re-trip this proxy gate. Binary size is only an on-disk proxy heuristic — code is demand-paged, so on-disk size ≠ resident size |
 
 ### 8.2 CPU
 
@@ -615,7 +611,7 @@ On `main`:
 
 | Risk (from PRD §8) | Test Mitigation | Priority |
 |---------------------|-----------------|----------|
-| Extension memory limit (iOS NE cap ≈ 50 MB) | CI fails build if `PacketTunnel.appex` stripped binary > 20 MB (proxy heuristic — see §8.1); manual pre-release smoke (T2.8) fails if resident > 40 MB sustained or any sample ≥ 50 MB per §8.1 | P0 |
+| Extension memory limit (iOS NE cap ≈ 50 MB) | CI fails build if `PacketTunnel.appex` stripped binary > 20 MB (on-disk proxy heuristic — see §8.1); `stress_rss.rs` leak-regression tests guard against unbounded growth; resident memory observed via Settings About/Memory and the memstats log line (§8.1) | P0 |
 | meow-rs protocol parity gaps vs. Go meow | Protocol matrix §6.3 exercises every outbound shipped by meow-rs v0.6.1 (SS / Trojan / VLESS variants) through real test servers; missing/broken protocol = ship-blocker for that protocol. Out-of-scope outbounds (VMess, WireGuard, TUIC, Hysteria 2) are deferred — not advertised, not tested. | P0 |
 | Apple review rejection | Static scan for ATS / privacy violations; manual pre-submission checklist | P0 |
 | NetworkExtension sandbox file I/O | Integration tests §4.1 exercise only App Group paths; any direct path triggers test failure | P1 |
@@ -633,7 +629,7 @@ All must be true before App Store submission:
 
 - [ ] All acceptance criteria §10 pass on iPhone 14 (minimum device) and iPhone 16 Pro
 - [ ] All 5 network checks §6.2 pass for the protocols shipped by meow-rs v0.6.1 — SS, Trojan, and VLESS (TLS / XTLS-Vision / WS) — walked manually on the developer's physical iPhone per T2.8
-- [ ] Performance benchmarks §8 meet targets on iPhone 14, **including the 50 MB extension memory ceiling (§8.1)**
+- [ ] Performance benchmarks §8 meet targets on iPhone 14
 - [ ] Security checklist §9 is 100% complete
 - [ ] Zero known P0/P1 bugs
 - [ ] Full regression pass on device matrix (PROJECT_PLAN §T7.5)
