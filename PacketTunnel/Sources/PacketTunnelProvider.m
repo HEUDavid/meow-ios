@@ -156,7 +156,6 @@ static os_log_t gLog;
                 report = @{
                     @"tunExists":  notRunning, @"dnsOk":      notRunning,
                     @"tcpProxyOk": notRunning, @"http204Ok":  notRunning,
-                    @"memOk":      notRunning,
                 };
             }
             NSData *data = [NSJSONSerialization dataWithJSONObject:report options:0 error:nil]

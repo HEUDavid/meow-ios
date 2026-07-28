@@ -369,7 +369,6 @@
 "a11y.diagnostics.check.dnsOk" = "DNS 解析";
 "a11y.diagnostics.check.tcpProxyOk" = "TCP 代理";
 "a11y.diagnostics.check.http204Ok" = "HTTP 204 检查";
-"a11y.diagnostics.check.memOk" = "内存用量";
 "a11y.diagnostics.result.pass %@" = "%@：通过";
 "a11y.diagnostics.result.fail %@ %@" = "%1$@：失败，%2$@";
 

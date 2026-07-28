@@ -129,7 +129,6 @@ final class DiagnosticsViewController: UIViewController {
         case .dnsOk: String(localized: "a11y.diagnostics.check.dnsOk")
         case .tcpProxyOk: String(localized: "a11y.diagnostics.check.tcpProxyOk")
         case .http204Ok: String(localized: "a11y.diagnostics.check.http204Ok")
-        case .memOk: String(localized: "a11y.diagnostics.check.memOk")
         }
         switch currentResults[check] ?? .fail(reason: "missing") {
         case .pass:
@@ -151,7 +150,6 @@ enum DiagnosticsClient {
             dnsOk: .fail("tunnel_not_running"),
             tcpProxyOk: .fail("tunnel_not_running"),
             http204Ok: .fail("tunnel_not_running"),
-            memOk: .fail("tunnel_not_running"),
         )
 
         let managers: [NETunnelProviderManager]

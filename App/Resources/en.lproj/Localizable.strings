@@ -363,7 +363,6 @@
 "a11y.diagnostics.check.dnsOk" = "DNS resolver";
 "a11y.diagnostics.check.tcpProxyOk" = "TCP proxy";
 "a11y.diagnostics.check.http204Ok" = "HTTP 204 check";
-"a11y.diagnostics.check.memOk" = "Memory usage";
 "a11y.diagnostics.result.pass %@" = "%@: passed";
 "a11y.diagnostics.result.fail %@ %@" = "%1$@: failed, %2$@";
 

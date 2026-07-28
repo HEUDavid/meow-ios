@@ -1,6 +1,5 @@
 #import "MWDiagnosticsRunner.h"
 #import "meow_core.h"
-#import <mach/mach.h>
 
 static NSDictionary *pass(void) {
     return @{@"pass": @YES, @"reason": @""};
@@ -38,7 +37,6 @@ static NSString *lastRustError(NSString *fallback) {
         @"dnsOk":      [self dnsOk],
         @"tcpProxyOk": [self tcpProxyOk],
         @"http204Ok":  [self http204Ok],
-        @"memOk":      [self memOk],
     };
 }
 
@@ -71,24 +69,6 @@ static NSString *lastRustError(NSString *fallback) {
     if (rc < 0) return fail(lastRustError(@"request_failed"));
     if (status != 204) return fail([NSString stringWithFormat:@"status=%d", status]);
     return pass();
-}
-
-+ (NSDictionary *)memOk {
-    // No footprint threshold: jetsam's ~50 MB cap is the real ship gate, and
-    // the live footprint is surfaced via the DiagnosticsIPC memory channel.
-    // This check only verifies that the reading itself works.
-    NSInteger mb = [self residentMemoryMB];
-    if (mb < 0) return fail(@"task_info_failed");
-    return pass();
-}
-
-+ (NSInteger)residentMemoryMB {
-    struct task_vm_info info = {0};
-    mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
-    kern_return_t rc = task_info(mach_task_self(), TASK_VM_INFO,
-                                 (task_info_t)&info, &count);
-    if (rc != KERN_SUCCESS) return -1;
-    return (NSInteger)(info.phys_footprint / (1024 * 1024));
 }
 
 // MARK: - User-initiated diagnostics (T4.10)

@@ -29,7 +29,6 @@ struct DiagnosticsIPCTests {
             dnsOk: .fail("resolve_failed"),
             tcpProxyOk: .pass,
             http204Ok: .fail("status=500"),
-            memOk: .pass,
         )
         let data = try DiagnosticsIPC.encodeResponse(report)
         let decoded = try DiagnosticsIPC.decodeResponse(data)

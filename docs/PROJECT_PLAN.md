@@ -136,13 +136,13 @@ This plan translates the PRD milestones into a concrete, dependency-ordered task
 #### T2.6 — Debug Diagnostics Panel  ⚑ **MANUAL SMOKE SURFACE**
 - Implement an in-extension diagnostics surface, visible only when `MEOW_DEBUG=1` launch argument is set (or Settings → triple-tap version label, debug builds only)
 - Implemented as `DiagnosticsPanel.swift` — a `UIViewController` (not SwiftUI) for pixel-stable label positions
-- The panel runs 5 checks in sequence and renders each as a stable `UILabel` (see PRD §4.4 for exact format contract)
-- **The 5 checks:**
+- The panel runs 4 checks in sequence and renders each as a stable `UILabel` (see PRD §4.4 for exact format contract)
+- **The 4 checks:**
   1. `TUN_EXISTS` — `meow_engine_is_running()` == 1 AND utun interface active
   2. `DNS_OK` — resolve `apple.com` via 172.19.0.2:53; expect ≥1 A record within 3 s
   3. `TCP_PROXY_OK` — TCP connect to `connectivitycheck.gstatic.com:443` through proxy within 5 s
   4. `HTTP_204_OK` — HTTP GET `http://connectivitycheck.gstatic.com/generate_204` returns 204
-  5. `MEM_OK` — resident-memory reading (`task_info`) succeeds; no footprint threshold
+  (A former 5th check, `MEM_OK`, was removed — memory usage is surfaced via the DiagnosticsIPC memory channel instead of a pass/fail row; see PRD §4.4.)
 - Each `UILabel` has `accessibilityIdentifier` = `CHECK_NAME` for unit-level UI test anchoring + VoiceOver
 - **Blocks:** T2.8 (manual device smoke)
 - **Depends on:** T2.3, T2.5
@@ -158,7 +158,7 @@ This plan translates the PRD milestones into a concrete, dependency-ordered task
 - User runs the app on their iPhone (iOS 26 real device), connects to a real proxy server via the extension, and verifies:
   - TCP traffic flows (open Safari, load a page)
   - Traffic counters increment
-  - Debug Diagnostics Panel (`MEOW_DEBUG=1` launch arg) shows all 5 checks as `PASS`
+  - Debug Diagnostics Panel (`MEOW_DEBUG=1` launch arg) shows all 4 checks as `PASS`
 - **Owner:** user (per v1.4 directive — no automated harness reproduces this)
 - **Note:** QUIC / non-DNS UDP tests are deferred (non-DNS UDP not wired until T2.9)
 - **Depends on:** T2.3, T2.5, T2.6, T2.7
@@ -415,7 +415,7 @@ T6.* after T5.*
 |-----------|-------|-----------------|
 | M0: Infrastructure | 1 | Xcode project builds on CI; Rust toolchain + meow-rs submodule ready |
 | M1: Native Core | 2–3 | `MeowCore.xcframework` ≤8 MB stripped; TCP + DoH traffic flows on device; UDP gap documented |
-| M1.5: Manual Smoke Passes | end of week 3 | T2.6 (Debug Diagnostics Panel) complete on device; user confirms all 5 checks `PASS` on their iPhone via T2.8 manual smoke |
+| M1.5: Manual Smoke Passes | end of week 3 | T2.6 (Debug Diagnostics Panel) complete on device; user confirms all 4 checks `PASS` on their iPhone via T2.8 manual smoke |
 | M2: Basic UI | 4–5 | Connect/disconnect, subscriptions, settings |
 | M3: Proxy & Realtime | 6–7 | Proxy selection, connections, rules, logs |
 | M4: Config & Providers | 8 | YAML editor + validation (T4.9), providers (T4.11), settings/logs/connections (T4.7/T4.8/T4.12) |
