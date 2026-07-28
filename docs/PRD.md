@@ -415,7 +415,7 @@ CHECK_NAME: FAIL(<reason>)
 | 2 | `DNS_OK` | `apple.com` resolves to ≥1 A record via 172.19.0.2:53 within 3 s | `FAIL(timeout)`, `FAIL(nxdomain)` |
 | 3 | `TCP_PROXY_OK` | TCP connect to `connectivitycheck.gstatic.com:443` succeeds through proxy within 5 s | `FAIL(timeout)`, `FAIL(refused)` |
 | 4 | `HTTP_204_OK` | HTTP GET `http://connectivitycheck.gstatic.com/generate_204` returns status 204 | `FAIL(status=NNN)`, `FAIL(timeout)` |
-| 5 | `MEM_OK` | Extension resident memory ≤ 40 MB | `FAIL(mem=NNmb>=15mb)` |
+| 5 | `MEM_OK` | Resident-memory reading (`task_info`) succeeds — no footprint threshold; the live value is surfaced via the DiagnosticsIPC memory channel | `FAIL(task_info_failed)` |
 
 **Screen layout (fixed, must not reorder):**
 ```

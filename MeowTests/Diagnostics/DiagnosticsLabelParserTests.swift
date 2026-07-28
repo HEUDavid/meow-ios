@@ -31,14 +31,14 @@ struct DiagnosticsLabelParserTests {
         DNS_OK: FAIL(timeout)
         TCP_PROXY_OK: FAIL(refused)
         HTTP_204_OK: FAIL(status=500)
-        MEM_OK: FAIL(mem=17mb>=15mb)
+        MEM_OK: FAIL(task_info_failed)
         """
         let results = try DiagnosticsLabelParser.parse(input)
         #expect(results[.tunExists] == .pass)
         #expect(results[.dnsOk] == .fail(reason: "timeout"))
         #expect(results[.tcpProxyOk] == .fail(reason: "refused"))
         #expect(results[.http204Ok] == .fail(reason: "status=500"))
-        #expect(results[.memOk] == .fail(reason: "mem=17mb>=15mb"))
+        #expect(results[.memOk] == .fail(reason: "task_info_failed"))
     }
 
     @Test

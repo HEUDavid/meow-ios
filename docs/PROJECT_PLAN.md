@@ -142,7 +142,7 @@ This plan translates the PRD milestones into a concrete, dependency-ordered task
   2. `DNS_OK` — resolve `apple.com` via 172.19.0.2:53; expect ≥1 A record within 3 s
   3. `TCP_PROXY_OK` — TCP connect to `connectivitycheck.gstatic.com:443` through proxy within 5 s
   4. `HTTP_204_OK` — HTTP GET `http://connectivitycheck.gstatic.com/generate_204` returns 204
-  5. `MEM_OK` — extension resident memory ≤ 40 MB; FAIL if ≥ 50 MB
+  5. `MEM_OK` — resident-memory reading (`task_info`) succeeds; no footprint threshold
 - Each `UILabel` has `accessibilityIdentifier` = `CHECK_NAME` for unit-level UI test anchoring + VoiceOver
 - **Blocks:** T2.8 (manual device smoke)
 - **Depends on:** T2.3, T2.5
