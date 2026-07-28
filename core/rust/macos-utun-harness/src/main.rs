@@ -304,8 +304,8 @@ fn main() -> Result<()> {
 
     // Optional RSS monitor — emits one info-level line per tick with the
     // mach `resident_size` for this process. Same number jetsam compares
-    // against on the device, so the curve here is directly meaningful for
-    // sizing the 50 MB extension budget.
+    // against the OS's ~50 MB limit on the device, so the curve here is
+    // directly meaningful. Logging only — nothing asserts on it.
     let rss_monitor_thread = if args.rss_monitor_interval_secs > 0 {
         let interval = std::time::Duration::from_secs(args.rss_monitor_interval_secs);
         Some(thread::spawn(move || rss_monitor_loop(interval)))
