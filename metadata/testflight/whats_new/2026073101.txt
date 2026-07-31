@@ -1,0 +1,5 @@
+Build 2026073101 (1.4.0)
+
+• Major internal rework of the tunnel's TCP/IP engine for reliability. The network stack now runs on a single dedicated owner instead of a shared lock — this removes the root cause behind several past "connected but no traffic" freezes, especially after the phone sleeps and wakes overnight.
+• Please test: leave the VPN connected overnight and through normal daily use (lock/unlock, switching Wi-Fi/cellular). If browsing ever stops while the VPN icon is still on, please export the log from Settings and report it.
+• Also includes the DNS fix from the previous build: your config's dns: section (nameserver, fallback, fake-ip-filter, nameserver-policy) is respected.
