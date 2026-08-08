@@ -211,6 +211,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
+            SKIP_INSTALL=NO \
             | xcbeautify
       - name: Enforce PacketTunnel.appex size budget (TEST_STRATEGY §8.1)
         run: |
