@@ -72,7 +72,7 @@ final class MvpManager {
         }
 
         isShieldToggling = true
-        let isConnected = appModel.vpnManager.vpnStatus == .connected
+        let isConnected = appModel.vpnManager.stage == .connected
 
         Task {
             if isConnected {

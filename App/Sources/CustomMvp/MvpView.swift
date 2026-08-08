@@ -63,14 +63,14 @@ struct MvpView: View {
     }
 
     private var isStart: Bool {
-        appModel.vpnManager.vpnStatus == .connected
+        appModel.vpnManager.stage == .connected
     }
 
     private var coreStatusText: String {
-        switch appModel.vpnManager.vpnStatus {
+        switch appModel.vpnManager.stage {
         case .connected:
             return "正常"
-        case .connecting, .reasserting:
+        case .connecting, .preparing:
             return "启动中"
         default:
             return "停用"
