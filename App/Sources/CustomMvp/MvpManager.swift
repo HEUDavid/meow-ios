@@ -19,21 +19,21 @@ public enum MvpToastType {
 @Observable
 final class MvpManager {
     static let shared = MvpManager()
-    
+
     var isMvpMode: Bool = true
     var showInputArea: Bool = false
     var isImporting: Bool = false
     var isUpdating: Bool = false
     var isShieldToggling: Bool = false
-    
+
     var toastMessage: String?
     var toastType: MvpToastType = .info
     private var toastTask: Task<Void, Never>?
-    
+
     private init() {
         applyDefaultPreferences()
     }
-    
+
     /// Silently sets optimal iOS VPN preferences into AppGroup.defaults
     /// - onDemand: true (keeps VPN automatically active across network changes)
     /// - blockHTTP3: true (prevents UDP/QUIC bypass of HTTP ad-blocking rules)
@@ -42,7 +42,7 @@ final class MvpManager {
         defaults.set(true, forKey: PreferenceKey.onDemand)
         defaults.set(true, forKey: PreferenceKey.blockHTTP3)
     }
-    
+
     func showToast(_ message: String, type: MvpToastType = .info, duration: TimeInterval = 2.5) {
         toastTask?.cancel()
         toastMessage = message
@@ -56,7 +56,7 @@ final class MvpManager {
             }
         }
     }
-    
+
     func toggleShield(appModel: AppModel, activeProfile: Profile?) {
         guard !isShieldToggling && !isUpdating && !isImporting else {
             if isUpdating || isImporting {
@@ -64,16 +64,16 @@ final class MvpManager {
             }
             return
         }
-        
+
         guard let activeProfile = activeProfile, !activeProfile.id.uuidString.isEmpty else {
             showInputArea = true
             showToast("请先导入配置文件", type: .info)
             return
         }
-        
+
         isShieldToggling = true
         let isConnected = appModel.vpnManager.vpnStatus == .connected
-        
+
         Task {
             if isConnected {
                 appModel.vpnManager.stopVpn()
@@ -86,22 +86,22 @@ final class MvpManager {
                     showToast("启动防追踪失败: \(error.localizedDescription)", type: .error)
                 }
             }
-            
+
             try? await Task.sleep(nanoseconds: 500_000_000)
             self.isShieldToggling = false
         }
     }
-    
+
     func importConfig(url: String, appModel: AppModel) async {
         let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") else {
             showToast("请输入有效的配置文件链接", type: .info)
             return
         }
-        
+
         isImporting = true
         defer { isImporting = false }
-        
+
         do {
             let profile = try await appModel.subscriptionService.add(name: "BlockAd MVP", url: trimmed)
             try appModel.subscriptionService.select(profile)
@@ -111,12 +111,12 @@ final class MvpManager {
             showToast("导入失败: \(error.localizedDescription)", type: .error)
         }
     }
-    
+
     func updateSubscription(appModel: AppModel, activeProfile: Profile) async {
         guard !isUpdating else { return }
         isUpdating = true
         defer { isUpdating = false }
-        
+
         do {
             try await appModel.subscriptionService.refresh(activeProfile)
             showToast("配置集已同步至最新", type: .success)
