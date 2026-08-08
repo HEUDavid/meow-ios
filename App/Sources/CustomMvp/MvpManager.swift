@@ -20,7 +20,7 @@ public enum MvpToastType {
 final class MvpManager {
     static let shared = MvpManager()
 
-    var isMvpMode: Bool = true
+    var isMvpMode: Bool = !ProcessInfo.processInfo.arguments.contains("-UITests")
     var showInputArea: Bool = false
     var isImporting: Bool = false
     var isUpdating: Bool = false
