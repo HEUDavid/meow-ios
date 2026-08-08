@@ -4,6 +4,7 @@ import SwiftData
 import SwiftUI
 
 // MARK: - AdGuard Custom Shield Shape
+
 struct AdGuardShieldShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
@@ -14,22 +15,22 @@ struct AdGuardShieldShape: Shape {
         path.addCurve(
             to: CGPoint(x: w, y: h * 0.18),
             control1: CGPoint(x: w * 0.82, y: 0),
-            control2: CGPoint(x: w, y: h * 0.08)
+            control2: CGPoint(x: w, y: h * 0.08),
         )
         path.addCurve(
             to: CGPoint(x: w * 0.5, y: h),
             control1: CGPoint(x: w, y: h * 0.62),
-            control2: CGPoint(x: w * 0.72, y: h * 0.92)
+            control2: CGPoint(x: w * 0.72, y: h * 0.92),
         )
         path.addCurve(
             to: CGPoint(x: 0, y: h * 0.18),
             control1: CGPoint(x: w * 0.28, y: h * 0.92),
-            control2: CGPoint(x: 0, y: h * 0.62)
+            control2: CGPoint(x: 0, y: h * 0.62),
         )
         path.addCurve(
             to: CGPoint(x: w * 0.5, y: 0),
             control1: CGPoint(x: 0, y: h * 0.08),
-            control2: CGPoint(x: w * 0.18, y: 0)
+            control2: CGPoint(x: w * 0.18, y: 0),
         )
         path.closeSubpath()
         return path
@@ -61,7 +62,7 @@ struct MvpHeaderBar: View {
                         .overlay(
                             Image(systemName: "checkmark")
                                 .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundColor(.white),
                         )
                 }
                 .onTapGesture {
@@ -167,7 +168,7 @@ struct MvpShieldHero: View {
             .frame(width: 135, height: 160)
             .overlay(
                 AdGuardShieldShape()
-                    .stroke(isStart ? MvpTheme.activeColorLight : MvpTheme.offBorderColor, lineWidth: 1.5)
+                    .stroke(isStart ? MvpTheme.activeColorLight : MvpTheme.offBorderColor, lineWidth: 1.5),
             )
             .overlay(
                 VStack(spacing: 6) {
@@ -179,7 +180,7 @@ struct MvpShieldHero: View {
                     Image(systemName: "power")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(isStart ? .white.opacity(0.9) : MvpTheme.textMuted)
-                }
+                },
             )
             .scaleEffect(isShieldPressed ? 0.95 : 1.0)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isShieldPressed)
@@ -190,7 +191,7 @@ struct MvpShieldHero: View {
             .simultaneousGesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { _ in isShieldPressed = true }
-                    .onEnded { _ in isShieldPressed = false }
+                    .onEnded { _ in isShieldPressed = false },
             )
     }
 }
@@ -205,11 +206,11 @@ struct MvpQuickInfoCards: View {
     private var coreStatusText: String {
         switch appModel.vpnManager.stage {
         case .connected:
-            return "正常"
+            "正常"
         case .connecting, .preparing:
-            return "启动中"
+            "启动中"
         default:
-            return "停用"
+            "停用"
         }
     }
 
@@ -219,14 +220,14 @@ struct MvpQuickInfoCards: View {
                 iconName: "shield.fill",
                 title: "防护状态",
                 value: isStart ? "已开启" : "未开启",
-                isActive: isStart
+                isActive: isStart,
             )
 
             buildInfoItem(
                 iconName: "cpu",
                 title: "内核状态",
                 value: coreStatusText,
-                isActive: isStart
+                isActive: isStart,
             )
         }
     }
@@ -263,7 +264,7 @@ struct MvpQuickInfoCards: View {
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(MvpTheme.borderColor, lineWidth: 1)
+                .stroke(MvpTheme.borderColor, lineWidth: 1),
         )
     }
 }
@@ -305,7 +306,7 @@ struct MvpProfileCard: View {
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(MvpTheme.borderColor, lineWidth: 1)
+                .stroke(MvpTheme.borderColor, lineWidth: 1),
         )
     }
 
@@ -392,7 +393,7 @@ struct MvpProfileCard: View {
                     .cornerRadius(10)
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            .stroke(MvpTheme.borderColor, lineWidth: 1)
+                            .stroke(MvpTheme.borderColor, lineWidth: 1),
                     )
 
                 Button(action: {
@@ -448,6 +449,7 @@ struct MvpProfileCard: View {
 }
 
 // MARK: - Main MvpView
+
 struct MvpView: View {
     @Environment(AppModel.self) private var appModel
     @Environment(\.modelContext) private var modelContext
@@ -473,7 +475,7 @@ struct MvpView: View {
                     MvpHeaderBar(
                         mvpManager: mvpManager,
                         onExportLogs: { Task { await exportLogs() } },
-                        exportingLogs: exportingLogs
+                        exportingLogs: exportingLogs,
                     )
                     Spacer(minLength: 12)
                     MvpShieldHero(appModel: appModel, activeProfile: activeProfile, mvpManager: mvpManager)
@@ -499,7 +501,7 @@ struct MvpView: View {
             defaultFilename: "blockad-log-\(logTimestamp).log",
             onCompletion: { _ in
                 logExportDocument = nil
-            }
+            },
         )
     }
 
@@ -527,14 +529,15 @@ struct MvpView: View {
 
     private func toastIconName(for type: MvpToastType) -> String {
         switch type {
-        case .info: return "info.circle.fill"
-        case .success: return "checkmark.circle.fill"
-        case .error: return "xmark.octagon.fill"
-        case .warning: return "exclamationmark.triangle.fill"
+        case .info: "info.circle.fill"
+        case .success: "checkmark.circle.fill"
+        case .error: "xmark.octagon.fill"
+        case .warning: "exclamationmark.triangle.fill"
         }
     }
 
     // MARK: - Log Export
+
     private var logTimestamp: String {
         let df = DateFormatter()
         df.dateFormat = "yyyyMMdd-HHmmss"
