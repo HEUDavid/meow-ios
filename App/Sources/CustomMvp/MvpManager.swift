@@ -76,12 +76,12 @@ final class MvpManager {
 
         Task {
             if isConnected {
-                appModel.vpnManager.stopVpn()
+                await appModel.vpnManager.disconnect()
             } else {
                 do {
                     // Ensure active config is written before connecting
                     try appModel.subscriptionService.writeActiveConfig(activeProfile)
-                    appModel.vpnManager.startVpn()
+                    await appModel.vpnManager.connect()
                 } catch {
                     showToast("启动防追踪失败: \(error.localizedDescription)", type: .error)
                 }
