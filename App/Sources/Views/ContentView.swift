@@ -21,31 +21,39 @@ struct ContentView: View {
     @State private var pendingDeepLinkConfirmation: DeepLinkImportConfirmation?
     @State private var importingDeepLinkURLs: Set<String> = []
 
-    var body: some View {
-        VStack(spacing: 0) {
-            GlobalVpnSwitchBar()
+    @State private var mvpManager = MvpManager.shared
 
-            TabView(selection: $selectedTab) {
-                NavigationStack { SubscriptionsView() }
-                    .tabItem { Label("tabs.subscriptions", systemImage: "text.document.fill") }
-                    .accessibilityIdentifier("Subscriptions")
-                    .tag(ContentTab.subscriptions)
-                NavigationStack { ProxyGroupsView() }
-                    .tabItem { Label("tabs.proxyGroups", systemImage: "rectangle.stack.fill") }
-                    .accessibilityIdentifier("Proxy Groups")
-                    .tag(ContentTab.proxyGroups)
-                NavigationStack { UtilityView() }
-                    .tabItem { Label("tabs.utility", systemImage: "wrench.and.screwdriver.fill") }
-                    .accessibilityIdentifier("Utility")
-                    .tag(ContentTab.utility)
-                NavigationStack { SettingsView() }
-                    .tabItem { Label("tabs.settings", systemImage: "gearshape.fill") }
-                    .accessibilityIdentifier("Settings")
-                    .tag(ContentTab.settings)
+    var body: some View {
+        Group {
+            if mvpManager.isMvpMode {
+                MvpView()
+            } else {
+                VStack(spacing: 0) {
+                    GlobalVpnSwitchBar()
+
+                    TabView(selection: $selectedTab) {
+                        NavigationStack { SubscriptionsView() }
+                            .tabItem { Label("tabs.subscriptions", systemImage: "text.document.fill") }
+                            .accessibilityIdentifier("Subscriptions")
+                            .tag(ContentTab.subscriptions)
+                        NavigationStack { ProxyGroupsView() }
+                            .tabItem { Label("tabs.proxyGroups", systemImage: "rectangle.stack.fill") }
+                            .accessibilityIdentifier("Proxy Groups")
+                            .tag(ContentTab.proxyGroups)
+                        NavigationStack { UtilityView() }
+                            .tabItem { Label("tabs.utility", systemImage: "wrench.and.screwdriver.fill") }
+                            .accessibilityIdentifier("Utility")
+                            .tag(ContentTab.utility)
+                        NavigationStack { SettingsView() }
+                            .tabItem { Label("tabs.settings", systemImage: "gearshape.fill") }
+                            .accessibilityIdentifier("Settings")
+                            .tag(ContentTab.settings)
+                    }
+                }
+                .background(AppTheme.screenBackground)
+                .tint(AppTheme.accent)
             }
         }
-        .background(AppTheme.screenBackground)
-        .tint(AppTheme.accent)
         .onOpenURL { url in
             if url.scheme == "meow", url.host == "diagnostics" {
                 showDiagnostics = true
