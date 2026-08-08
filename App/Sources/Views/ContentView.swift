@@ -21,11 +21,9 @@ struct ContentView: View {
     @State private var pendingDeepLinkConfirmation: DeepLinkImportConfirmation?
     @State private var importingDeepLinkURLs: Set<String> = []
 
-    @State private var mvpManager = MvpManager.shared
-
     var body: some View {
         Group {
-            if mvpManager.isMvpMode {
+            if MvpManager.shared.isMvpMode {
                 MvpView()
             } else {
                 VStack(spacing: 0) {
