@@ -36,115 +36,18 @@ struct AdGuardShieldShape: Shape {
     }
 }
 
-// MARK: - Main MvpView
-struct MvpView: View {
-    @Environment(AppModel.self) private var appModel
-    @Environment(\.modelContext) private var modelContext
-    @Query private var profiles: [Profile]
+// MARK: - Subcomponents
 
-    @State private var mvpManager = MvpManager.shared
-    @State private var urlInput: String = ""
-    @State private var isShieldPressed: Bool = false
+struct MvpHeaderBar: View {
+    @Bindable var mvpManager: MvpManager
+    let onExportLogs: () -> Void
+    let exportingLogs: Bool
 
     // Tap counter for 5-tap easter egg to switch back to full meow-ios mode
     @State private var minimalTapCount: Int = 0
     @State private var lastTapTime: Date?
 
-    @State private var logExportDocument: MvpLogExportDocument?
-    @State private var showingLogExporter = false
-    @State private var exportingLogs = false
-
-    private var activeProfile: Profile? {
-        profiles.first(where: \.isSelected) ?? profiles.first
-    }
-
-    private var hasProfile: Bool {
-        activeProfile != nil
-    }
-
-    private var isStart: Bool {
-        appModel.vpnManager.stage == .connected
-    }
-
-    private var coreStatusText: String {
-        switch appModel.vpnManager.stage {
-        case .connected:
-            return "正常"
-        case .connecting, .preparing:
-            return "启动中"
-        default:
-            return "停用"
-        }
-    }
-
-    private var activeProfileTitle: String {
-        guard hasProfile else { return "暂无生效配置" }
-        if let name = activeProfile?.name, !name.isEmpty {
-            return name
-        }
-        return "BlockAd MVP 配置包"
-    }
-
     var body: some View {
-        ZStack {
-            MvpTheme.bgPrimary
-                .ignoresSafeArea()
-
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 16) {
-                    buildHeaderBar()
-                    Spacer(minLength: 12)
-                    buildShieldHero()
-                    Spacer(minLength: 12)
-                    buildQuickInfoCards()
-                    buildProfileConfigCard()
-                    Spacer(minLength: 16)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .frame(maxWidth: 600)
-                .frame(maxWidth: .infinity, alignment: .center)
-            }
-
-            if let toastMsg = mvpManager.toastMessage {
-                buildToastOverlay(msg: toastMsg)
-            }
-        }
-        .fileExporter(
-            isPresented: $showingLogExporter,
-            document: logExportDocument,
-            contentType: .plainText,
-            defaultFilename: "blockad-log-\(logTimestamp).log",
-            onCompletion: { _ in
-                logExportDocument = nil
-            }
-        )
-    }
-
-    private func buildToastOverlay(msg: String) -> some View {
-        VStack {
-            Spacer()
-            HStack(spacing: 8) {
-                Image(systemName: toastIconName(for: mvpManager.toastType))
-                    .foregroundColor(.white)
-                    .font(.system(size: 14, weight: .semibold))
-                Text(msg)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.white)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(MvpTheme.toastBg)
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
-            .padding(.bottom, 24)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
-        }
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: msg)
-    }
-
-    // MARK: - 1. Header Bar Component
-    private func buildHeaderBar() -> some View {
         HStack(spacing: 12) {
             HStack(spacing: 10) {
                 ZStack {
@@ -179,8 +82,8 @@ struct MvpView: View {
             Spacer()
 
             Button(action: {
-                Task { await exportLogs() }
-            }) {
+                onExportLogs()
+            }, label: {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(MvpTheme.borderColor.opacity(0.6))
@@ -195,13 +98,41 @@ struct MvpView: View {
                             .foregroundColor(MvpTheme.textPrimary)
                     }
                 }
-            }
+            })
             .disabled(exportingLogs)
         }
     }
 
-    // MARK: - 2. Protection Shield Hero Area
-    private func buildShieldHero() -> some View {
+    private func handleMinimalTap() {
+        let now = Date()
+        if let last = lastTapTime, now.timeIntervalSince(last) > 2.0 {
+            minimalTapCount = 0
+        }
+        lastTapTime = now
+        minimalTapCount += 1
+
+        if minimalTapCount >= 5 {
+            minimalTapCount = 0
+            withAnimation {
+                mvpManager.isMvpMode = false
+            }
+            mvpManager.showToast("已切换至高级模式", type: .info)
+        }
+    }
+}
+
+struct MvpShieldHero: View {
+    let appModel: AppModel
+    let activeProfile: Profile?
+    @Bindable var mvpManager: MvpManager
+
+    @State private var isShieldPressed: Bool = false
+
+    private var isStart: Bool {
+        appModel.vpnManager.stage == .connected
+    }
+
+    var body: some View {
         VStack(spacing: 12) {
             ZStack {
                 if isStart {
@@ -232,13 +163,7 @@ struct MvpView: View {
         let colors = isStart ? activeGradient : inactiveGradient
 
         return AdGuardShieldShape()
-            .fill(
-                LinearGradient(
-                    colors: colors,
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
+            .fill(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing))
             .frame(width: 135, height: 160)
             .overlay(
                 AdGuardShieldShape()
@@ -268,9 +193,27 @@ struct MvpView: View {
                     .onEnded { _ in isShieldPressed = false }
             )
     }
+}
 
-    // MARK: - 3. Quick Info Cards (防护状态 & 内核状态)
-    private func buildQuickInfoCards() -> some View {
+struct MvpQuickInfoCards: View {
+    let appModel: AppModel
+
+    private var isStart: Bool {
+        appModel.vpnManager.stage == .connected
+    }
+
+    private var coreStatusText: String {
+        switch appModel.vpnManager.stage {
+        case .connected:
+            return "正常"
+        case .connecting, .preparing:
+            return "启动中"
+        default:
+            return "停用"
+        }
+    }
+
+    var body: some View {
         HStack(spacing: 12) {
             buildInfoItem(
                 iconName: "shield.fill",
@@ -323,9 +266,28 @@ struct MvpView: View {
                 .stroke(MvpTheme.borderColor, lineWidth: 1)
         )
     }
+}
 
-    // MARK: - 4. Profile / Subscription Config Card
-    private func buildProfileConfigCard() -> some View {
+struct MvpProfileCard: View {
+    let appModel: AppModel
+    let activeProfile: Profile?
+    @Bindable var mvpManager: MvpManager
+
+    @State private var urlInput: String = ""
+
+    private var hasProfile: Bool {
+        activeProfile != nil
+    }
+
+    private var activeProfileTitle: String {
+        guard hasProfile else { return "暂无生效配置" }
+        if let name = activeProfile?.name, !name.isEmpty {
+            return name
+        }
+        return "BlockAd MVP 配置包"
+    }
+
+    var body: some View {
         VStack(spacing: 12) {
             buildProfileHeader()
 
@@ -364,15 +326,12 @@ struct MvpView: View {
             Button(action: {
                 if let profile = activeProfile {
                     Task {
-                        await mvpManager.updateSubscription(
-                            appModel: appModel,
-                            activeProfile: profile
-                        )
+                        await mvpManager.updateSubscription(appModel: appModel, activeProfile: profile)
                     }
                 } else {
                     mvpManager.showToast("请先导入配置文件", type: .info)
                 }
-            }) {
+            }, label: {
                 HStack(spacing: 4) {
                     if mvpManager.isUpdating {
                         ProgressView()
@@ -389,7 +348,7 @@ struct MvpView: View {
                 .padding(.vertical, 6)
                 .background(MvpTheme.activeColor.opacity(0.08))
                 .cornerRadius(8)
-            }
+            })
         }
     }
 
@@ -414,11 +373,11 @@ struct MvpView: View {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                     mvpManager.showInputArea.toggle()
                 }
-            }) {
+            }, label: {
                 Image(systemName: mvpManager.showInputArea ? "chevron.up.circle.fill" : "plus.circle.fill")
                     .font(.system(size: 20))
                     .foregroundColor(MvpTheme.activeColor)
-            }
+            })
         }
     }
 
@@ -440,7 +399,7 @@ struct MvpView: View {
                     if let pasted = UIPasteboard.general.string {
                         urlInput = pasted.trimmingCharacters(in: .whitespacesAndNewlines)
                     }
-                }) {
+                }, label: {
                     Text("粘贴")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(MvpTheme.textPrimary)
@@ -448,7 +407,7 @@ struct MvpView: View {
                         .padding(.vertical, 10)
                         .background(MvpTheme.borderColor.opacity(0.6))
                         .cornerRadius(10)
-                }
+                })
             }
 
             buildSubmitImportButton()
@@ -465,7 +424,7 @@ struct MvpView: View {
                     urlInput = ""
                 }
             }
-        }) {
+        }, label: {
             HStack {
                 if mvpManager.isImporting {
                     ProgressView()
@@ -483,26 +442,87 @@ struct MvpView: View {
             .padding(.vertical, 11)
             .background(MvpTheme.activeColor)
             .cornerRadius(10)
-        }
+        })
         .disabled(mvpManager.isImporting)
     }
+}
 
-    // MARK: - 5-Tap Minimal Mode Toggle Helper
-    private func handleMinimalTap() {
-        let now = Date()
-        if let last = lastTapTime, now.timeIntervalSince(last) > 2.0 {
-            minimalTapCount = 0
-        }
-        lastTapTime = now
-        minimalTapCount += 1
+// MARK: - Main MvpView
+struct MvpView: View {
+    @Environment(AppModel.self) private var appModel
+    @Environment(\.modelContext) private var modelContext
+    @Query private var profiles: [Profile]
 
-        if minimalTapCount >= 5 {
-            minimalTapCount = 0
-            withAnimation {
-                mvpManager.isMvpMode = false
+    @State private var mvpManager = MvpManager.shared
+
+    @State private var logExportDocument: MvpLogExportDocument?
+    @State private var showingLogExporter = false
+    @State private var exportingLogs = false
+
+    private var activeProfile: Profile? {
+        profiles.first(where: \.isSelected) ?? profiles.first
+    }
+
+    var body: some View {
+        ZStack {
+            MvpTheme.bgPrimary
+                .ignoresSafeArea()
+
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 16) {
+                    MvpHeaderBar(
+                        mvpManager: mvpManager,
+                        onExportLogs: { Task { await exportLogs() } },
+                        exportingLogs: exportingLogs
+                    )
+                    Spacer(minLength: 12)
+                    MvpShieldHero(appModel: appModel, activeProfile: activeProfile, mvpManager: mvpManager)
+                    Spacer(minLength: 12)
+                    MvpQuickInfoCards(appModel: appModel)
+                    MvpProfileCard(appModel: appModel, activeProfile: activeProfile, mvpManager: mvpManager)
+                    Spacer(minLength: 16)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .frame(maxWidth: 600)
+                .frame(maxWidth: .infinity, alignment: .center)
             }
-            mvpManager.showToast("已切换至高级模式", type: .info)
+
+            if let toastMsg = mvpManager.toastMessage {
+                buildToastOverlay(msg: toastMsg)
+            }
         }
+        .fileExporter(
+            isPresented: $showingLogExporter,
+            document: logExportDocument,
+            contentType: .plainText,
+            defaultFilename: "blockad-log-\(logTimestamp).log",
+            onCompletion: { _ in
+                logExportDocument = nil
+            }
+        )
+    }
+
+    private func buildToastOverlay(msg: String) -> some View {
+        VStack {
+            Spacer()
+            HStack(spacing: 8) {
+                Image(systemName: toastIconName(for: mvpManager.toastType))
+                    .foregroundColor(.white)
+                    .font(.system(size: 14, weight: .semibold))
+                Text(msg)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.white)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(MvpTheme.toastBg)
+            .cornerRadius(12)
+            .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
+            .padding(.bottom, 24)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: msg)
     }
 
     private func toastIconName(for type: MvpToastType) -> String {
