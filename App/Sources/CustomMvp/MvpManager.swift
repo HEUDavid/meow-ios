@@ -58,14 +58,14 @@ final class MvpManager {
     }
 
     func toggleShield(appModel: AppModel, activeProfile: Profile?) {
-        guard !isShieldToggling && !isUpdating && !isImporting else {
+        guard !isShieldToggling, !isUpdating, !isImporting else {
             if isUpdating || isImporting {
                 showToast("操作处理中，请稍候...", type: .warning, duration: 1.5)
             }
             return
         }
 
-        guard let activeProfile = activeProfile, !activeProfile.id.uuidString.isEmpty else {
+        guard let activeProfile, !activeProfile.id.uuidString.isEmpty else {
             showInputArea = true
             showToast("请先导入配置文件", type: .info)
             return
