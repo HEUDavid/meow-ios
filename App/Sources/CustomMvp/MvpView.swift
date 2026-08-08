@@ -48,7 +48,7 @@ struct MvpView: View {
 
     // Tap counter for 5-tap easter egg to switch back to full meow-ios mode
     @State private var minimalTapCount: Int = 0
-    @State private var lastTapTime: Date? = nil
+    @State private var lastTapTime: Date?
 
     @State private var logExportDocument: MvpLogExportDocument?
     @State private var showingLogExporter = false
@@ -77,6 +77,14 @@ struct MvpView: View {
         }
     }
 
+    private var activeProfileTitle: String {
+        guard hasProfile else { return "暂无生效配置" }
+        if let name = activeProfile?.name, !name.isEmpty {
+            return name
+        }
+        return "BlockAd MVP 配置包"
+    }
+
     var body: some View {
         ZStack {
             MvpTheme.bgPrimary
@@ -84,22 +92,12 @@ struct MvpView: View {
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 16) {
-                    // 1. Top Header Bar
                     buildHeaderBar()
-
                     Spacer(minLength: 12)
-
-                    // 2. Central Protection Shield Hero Area
                     buildShieldHero()
-
                     Spacer(minLength: 12)
-
-                    // 3. Quick Info Cards (防护状态 & 内核状态)
                     buildQuickInfoCards()
-
-                    // 4. Subscription Config Card
                     buildProfileConfigCard()
-
                     Spacer(minLength: 16)
                 }
                 .padding(.horizontal, 20)
@@ -108,27 +106,8 @@ struct MvpView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
             }
 
-            // Toast Notification Overlay
             if let toastMsg = mvpManager.toastMessage {
-                VStack {
-                    Spacer()
-                    HStack(spacing: 8) {
-                        Image(systemName: toastIconName(for: mvpManager.toastType))
-                            .foregroundColor(.white)
-                            .font(.system(size: 14, weight: .semibold))
-                        Text(toastMsg)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.white)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(MvpTheme.toastBg)
-                    .cornerRadius(12)
-                    .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
-                    .padding(.bottom, 24)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: toastMsg)
+                buildToastOverlay(msg: toastMsg)
             }
         }
         .fileExporter(
@@ -142,11 +121,32 @@ struct MvpView: View {
         )
     }
 
+    private func buildToastOverlay(msg: String) -> some View {
+        VStack {
+            Spacer()
+            HStack(spacing: 8) {
+                Image(systemName: toastIconName(for: mvpManager.toastType))
+                    .foregroundColor(.white)
+                    .font(.system(size: 14, weight: .semibold))
+                Text(msg)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.white)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(MvpTheme.toastBg)
+            .cornerRadius(12)
+            .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
+            .padding(.bottom, 24)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: msg)
+    }
+
     // MARK: - 1. Header Bar Component
     private func buildHeaderBar() -> some View {
         HStack(spacing: 12) {
             HStack(spacing: 10) {
-                // Shield Logo with 5-Tap Easter Egg
                 ZStack {
                     Circle()
                         .fill(MvpTheme.activeColor.opacity(0.12))
@@ -178,7 +178,6 @@ struct MvpView: View {
 
             Spacer()
 
-            // Log Export Button
             Button(action: {
                 Task { await exportLogs() }
             }) {
@@ -205,7 +204,6 @@ struct MvpView: View {
     private func buildShieldHero() -> some View {
         VStack(spacing: 12) {
             ZStack {
-                // Outer Ambient Halo Glow
                 if isStart {
                     Circle()
                         .fill(MvpTheme.activeColor.opacity(0.25))
@@ -213,52 +211,14 @@ struct MvpView: View {
                         .blur(radius: 16)
                 }
 
-                // Canvas 3D Shield Button
-                AdGuardShieldShape()
-                    .fill(
-                        LinearGradient(
-                            colors: isStart ? [MvpTheme.activeColorLight, MvpTheme.activeColor, MvpTheme.activeColorDark] : [MvpTheme.offBgColor, MvpTheme.offBorderColor],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 135, height: 160)
-                    .overlay(
-                        AdGuardShieldShape()
-                            .stroke(isStart ? MvpTheme.activeColorLight : MvpTheme.offBorderColor, lineWidth: 1.5)
-                    )
-                    .overlay(
-                        VStack(spacing: 6) {
-                            Image(systemName: isStart ? "checkmark.shield.fill" : "shield")
-                                .font(.system(size: 42, weight: .semibold))
-                                .foregroundColor(isStart ? .white : MvpTheme.textSecondary)
-                                .shadow(color: Color.black.opacity(isStart ? 0.2 : 0.05), radius: 4, x: 0, y: 2)
-
-                            Image(systemName: "power")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(isStart ? .white.opacity(0.9) : MvpTheme.textMuted)
-                        }
-                    )
-                    .scaleEffect(isShieldPressed ? 0.95 : 1.0)
-                    .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isShieldPressed)
-                    .animation(.easeInOut(duration: 0.3), value: isStart)
-                    .onTapGesture {
-                        mvpManager.toggleShield(appModel: appModel, activeProfile: activeProfile)
-                    }
-                    .simultaneousGesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { _ in isShieldPressed = true }
-                            .onEnded { _ in isShieldPressed = false }
-                    )
+                buildShieldButton()
             }
 
-            // Status Title
             Text(isStart ? "广告防护已开启" : "广告防护已暂停")
                 .font(.system(size: 19, weight: .bold))
                 .foregroundColor(MvpTheme.textPrimary)
                 .animation(.easeInOut(duration: 0.2), value: isStart)
 
-            // Status Subtitle
             Text(isStart ? "防护运行中 · 智能拦截与隐私保护" : "点击上方盾牌一键开启防护")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(MvpTheme.textSecondary)
@@ -266,10 +226,52 @@ struct MvpView: View {
         }
     }
 
+    private func buildShieldButton() -> some View {
+        let activeGradient = [MvpTheme.activeColorLight, MvpTheme.activeColor, MvpTheme.activeColorDark]
+        let inactiveGradient = [MvpTheme.offBgColor, MvpTheme.offBorderColor]
+        let colors = isStart ? activeGradient : inactiveGradient
+
+        return AdGuardShieldShape()
+            .fill(
+                LinearGradient(
+                    colors: colors,
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .frame(width: 135, height: 160)
+            .overlay(
+                AdGuardShieldShape()
+                    .stroke(isStart ? MvpTheme.activeColorLight : MvpTheme.offBorderColor, lineWidth: 1.5)
+            )
+            .overlay(
+                VStack(spacing: 6) {
+                    Image(systemName: isStart ? "checkmark.shield.fill" : "shield")
+                        .font(.system(size: 42, weight: .semibold))
+                        .foregroundColor(isStart ? .white : MvpTheme.textSecondary)
+                        .shadow(color: Color.black.opacity(isStart ? 0.2 : 0.05), radius: 4, x: 0, y: 2)
+
+                    Image(systemName: "power")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(isStart ? .white.opacity(0.9) : MvpTheme.textMuted)
+                }
+            )
+            .scaleEffect(isShieldPressed ? 0.95 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isShieldPressed)
+            .animation(.easeInOut(duration: 0.3), value: isStart)
+            .onTapGesture {
+                mvpManager.toggleShield(appModel: appModel, activeProfile: activeProfile)
+            }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in isShieldPressed = true }
+                    .onEnded { _ in isShieldPressed = false }
+            )
+    }
+
     // MARK: - 3. Quick Info Cards (防护状态 & 内核状态)
     private func buildQuickInfoCards() -> some View {
         HStack(spacing: 12) {
-            // Card 1: 防护状态
             buildInfoItem(
                 iconName: "shield.fill",
                 title: "防护状态",
@@ -277,7 +279,6 @@ struct MvpView: View {
                 isActive: isStart
             )
 
-            // Card 2: 内核状态
             buildInfoItem(
                 iconName: "cpu",
                 title: "内核状态",
@@ -288,10 +289,11 @@ struct MvpView: View {
     }
 
     private func buildInfoItem(iconName: String, title: String, value: String, isActive: Bool) -> some View {
-        HStack(spacing: 10) {
+        let bgFill = isActive ? MvpTheme.activeColor.opacity(0.12) : MvpTheme.borderColor.opacity(0.5)
+        return HStack(spacing: 10) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(isActive ? MvpTheme.activeColor.opacity(0.12) : MvpTheme.borderColor.opacity(0.5))
+                    .fill(bgFill)
                     .frame(width: 32, height: 32)
 
                 Image(systemName: iconName)
@@ -325,140 +327,15 @@ struct MvpView: View {
     // MARK: - 4. Profile / Subscription Config Card
     private func buildProfileConfigCard() -> some View {
         VStack(spacing: 12) {
-            HStack {
-                HStack(spacing: 6) {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(MvpTheme.activeColor)
-
-                    Text("规则配置集")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(MvpTheme.textPrimary)
-                }
-
-                Spacer()
-
-                // Update Button
-                Button(action: {
-                    if let profile = activeProfile {
-                        Task {
-                            await mvpManager.updateSubscription(appModel: appModel, activeProfile: profile)
-                        }
-                    } else {
-                        mvpManager.showToast("请先导入配置文件", type: .info)
-                    }
-                }) {
-                    HStack(spacing: 4) {
-                        if mvpManager.isUpdating {
-                            ProgressView()
-                                .scaleEffect(0.7)
-                        } else {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                                .font(.system(size: 12, weight: .semibold))
-                        }
-                        Text("更新规则")
-                            .font(.system(size: 12, weight: .semibold))
-                    }
-                    .foregroundColor(MvpTheme.activeColor)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(MvpTheme.activeColor.opacity(0.08))
-                    .cornerRadius(8)
-                }
-            }
+            buildProfileHeader()
 
             Divider()
                 .background(MvpTheme.borderColor)
 
-            // Active Profile Info Row
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(hasProfile ? (activeProfile?.name.isEmpty == false ? activeProfile!.name : "BlockAd MVP 配置包") : "暂无生效配置")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(MvpTheme.textPrimary)
+            buildActiveProfileInfoRow()
 
-                    if hasProfile, let url = activeProfile?.url, !url.isEmpty {
-                        Text(url)
-                            .font(.system(size: 11))
-                            .foregroundColor(MvpTheme.textSecondary)
-                            .lineLimit(1)
-                    }
-                }
-
-                Spacer()
-
-                // Expand / Collapse Import Section Button
-                Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        mvpManager.showInputArea.toggle()
-                    }
-                }) {
-                    Image(systemName: mvpManager.showInputArea ? "chevron.up.circle.fill" : "plus.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(MvpTheme.activeColor)
-                }
-            }
-
-            // Collapsible Import Area
             if mvpManager.showInputArea {
-                VStack(spacing: 10) {
-                    HStack(spacing: 8) {
-                        TextField("粘贴或输入规则配置链接", text: $urlInput)
-                            .font(.system(size: 13))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                            .background(MvpTheme.bgPrimary)
-                            .cornerRadius(10)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(MvpTheme.borderColor, lineWidth: 1)
-                            )
-
-                        Button(action: {
-                            if let pasted = UIPasteboard.general.string {
-                                urlInput = pasted.trimmingCharacters(in: .whitespacesAndNewlines)
-                            }
-                        }) {
-                            Text("粘贴")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(MvpTheme.textPrimary)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 10)
-                                .background(MvpTheme.borderColor.opacity(0.6))
-                                .cornerRadius(10)
-                        }
-                    }
-
-                    Button(action: {
-                        Task {
-                            await mvpManager.importConfig(url: urlInput, appModel: appModel)
-                            if !mvpManager.showInputArea {
-                                urlInput = ""
-                            }
-                        }
-                    }) {
-                        HStack {
-                            if mvpManager.isImporting {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    .scaleEffect(0.8)
-                            } else {
-                                Image(systemName: "square.and.arrow.down.fill")
-                                    .font(.system(size: 13))
-                                Text("导入配置链接")
-                                    .font(.system(size: 13, weight: .bold))
-                            }
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 11)
-                        .background(MvpTheme.activeColor)
-                        .cornerRadius(10)
-                    }
-                    .disabled(mvpManager.isImporting)
-                }
-                .padding(.top, 4)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                buildImportArea()
             }
         }
         .padding(16)
@@ -468,6 +345,146 @@ struct MvpView: View {
             RoundedRectangle(cornerRadius: 16)
                 .stroke(MvpTheme.borderColor, lineWidth: 1)
         )
+    }
+
+    private func buildProfileHeader() -> some View {
+        HStack {
+            HStack(spacing: 6) {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(MvpTheme.activeColor)
+
+                Text("规则配置集")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(MvpTheme.textPrimary)
+            }
+
+            Spacer()
+
+            Button(action: {
+                if let profile = activeProfile {
+                    Task {
+                        await mvpManager.updateSubscription(
+                            appModel: appModel,
+                            activeProfile: profile
+                        )
+                    }
+                } else {
+                    mvpManager.showToast("请先导入配置文件", type: .info)
+                }
+            }) {
+                HStack(spacing: 4) {
+                    if mvpManager.isUpdating {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    } else {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    Text("更新规则")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .foregroundColor(MvpTheme.activeColor)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(MvpTheme.activeColor.opacity(0.08))
+                .cornerRadius(8)
+            }
+        }
+    }
+
+    private func buildActiveProfileInfoRow() -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(activeProfileTitle)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(MvpTheme.textPrimary)
+
+                if hasProfile, let url = activeProfile?.url, !url.isEmpty {
+                    Text(url)
+                        .font(.system(size: 11))
+                        .foregroundColor(MvpTheme.textSecondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer()
+
+            Button(action: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    mvpManager.showInputArea.toggle()
+                }
+            }) {
+                Image(systemName: mvpManager.showInputArea ? "chevron.up.circle.fill" : "plus.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(MvpTheme.activeColor)
+            }
+        }
+    }
+
+    private func buildImportArea() -> some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 8) {
+                TextField("粘贴或输入规则配置链接", text: $urlInput)
+                    .font(.system(size: 13))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(MvpTheme.bgPrimary)
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(MvpTheme.borderColor, lineWidth: 1)
+                    )
+
+                Button(action: {
+                    if let pasted = UIPasteboard.general.string {
+                        urlInput = pasted.trimmingCharacters(in: .whitespacesAndNewlines)
+                    }
+                }) {
+                    Text("粘贴")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(MvpTheme.textPrimary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(MvpTheme.borderColor.opacity(0.6))
+                        .cornerRadius(10)
+                }
+            }
+
+            buildSubmitImportButton()
+        }
+        .padding(.top, 4)
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    private func buildSubmitImportButton() -> some View {
+        Button(action: {
+            Task {
+                await mvpManager.importConfig(url: urlInput, appModel: appModel)
+                if !mvpManager.showInputArea {
+                    urlInput = ""
+                }
+            }
+        }) {
+            HStack {
+                if mvpManager.isImporting {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(0.8)
+                } else {
+                    Image(systemName: "square.and.arrow.down.fill")
+                        .font(.system(size: 13))
+                    Text("导入配置链接")
+                        .font(.system(size: 13, weight: .bold))
+                }
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 11)
+            .background(MvpTheme.activeColor)
+            .cornerRadius(10)
+        }
+        .disabled(mvpManager.isImporting)
     }
 
     // MARK: - 5-Tap Minimal Mode Toggle Helper
