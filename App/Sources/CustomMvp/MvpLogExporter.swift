@@ -1,5 +1,6 @@
 import Foundation
 import MeowIPC
+import MeowModels
 import OSLog
 import SwiftUI
 import UniformTypeIdentifiers
