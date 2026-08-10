@@ -64,7 +64,6 @@ targets:
           - CFBundleURLName: com.tangzixiang.meow.deeplink
             CFBundleURLSchemes:
               - meow
-
     entitlements:
       path: App/App.entitlements
       properties:
