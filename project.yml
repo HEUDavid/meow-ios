@@ -64,15 +64,7 @@ targets:
           - CFBundleURLName: com.tangzixiang.meow.deeplink
             CFBundleURLSchemes:
               - meow
-    entitlements:
-      path: App/App.entitlements
-      properties:
-        com.apple.security.application-groups:
-          - group.com.tangzixiang.meow
-        com.apple.developer.networking.networkextension:
-          - packet-tunnel-provider
-        keychain-access-groups:
-          - $(AppIdentifierPrefix)com.tangzixiang.meow
+
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.tangzixiang.meow
@@ -98,9 +90,6 @@ targets:
           # BoringSSL C++ — link libc++ so std::__1 symbols resolve.
           - -lc++
     dependencies:
-      - target: PacketTunnel
-        embed: true
-        codeSign: true
       - package: MeowShared
         product: MeowModels
       - package: MeowShared
@@ -240,7 +229,6 @@ schemes:
     build:
       targets:
         meow-ios: all
-        PacketTunnel: all
         MeowTests: [test]
         MeowUITests: [test]
         MeowIntegrationTests: [test]
