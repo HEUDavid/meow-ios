@@ -51,10 +51,6 @@ jobs:
       - name: Generate project
         run: |
           brew install xcodegen
-          
-          # Dynamically remove the strip script to prevent corrupting unsigned Mach-O binaries
-          sed -i '' '/postBuildScripts:/,/fi/d' project.yml
-          
           xcodegen generate
           
       - name: Archive project (no signing)
@@ -72,12 +68,6 @@ jobs:
         run: |
           mkdir -p build/Payload
           cp -a build/meow-ios.xcarchive/Products/Applications/meow-ios.app build/Payload/
-          
-          # Ad-hoc sign the app and extensions. Sideloadly's mach-o parser 
-          # often throws "Invalid file" if LC_CODE_SIGNATURE is completely missing.
-          codesign --force --sign - --timestamp=none build/Payload/meow-ios.app/PlugIns/*.appex || true
-          codesign --force --sign - --timestamp=none build/Payload/meow-ios.app
-          
           cd build
           zip -qyr meow-ios-unsigned.ipa Payload
           
