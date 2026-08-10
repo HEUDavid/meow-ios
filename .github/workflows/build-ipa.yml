@@ -51,6 +51,10 @@ jobs:
       - name: Generate project
         run: |
           brew install xcodegen
+          
+          # Dynamically remove the strip script to prevent corrupting unsigned Mach-O binaries
+          sed -i '' '/postBuildScripts:/,/fi/d' project.yml
+          
           xcodegen generate
           
       - name: Archive project (no signing)
