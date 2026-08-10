@@ -67,9 +67,9 @@ jobs:
       - name: Package unsigned IPA
         run: |
           mkdir -p build/Payload
-          cp -r build/meow-ios.xcarchive/Products/Applications/meow-ios.app build/Payload/
+          cp -a build/meow-ios.xcarchive/Products/Applications/meow-ios.app build/Payload/
           cd build
-          zip -qr meow-ios-unsigned.ipa Payload
+          ditto -c -k --keepParent Payload meow-ios-unsigned.ipa
           
       - uses: actions/upload-artifact@v4
         with:
