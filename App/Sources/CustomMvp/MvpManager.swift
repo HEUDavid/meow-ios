@@ -31,16 +31,6 @@ final class MvpManager {
     private var toastTask: Task<Void, Never>?
 
     private init() {
-        applyDefaultPreferences()
-    }
-
-    /// Silently sets optimal iOS VPN preferences into AppGroup.defaults
-    /// - onDemand: true (keeps VPN automatically active across network changes)
-    /// - blockHTTP3: true (prevents UDP/QUIC bypass of HTTP ad-blocking rules)
-    func applyDefaultPreferences() {
-        let defaults = AppGroup.defaults
-        defaults.set(true, forKey: PreferenceKey.onDemand)
-        defaults.set(true, forKey: PreferenceKey.blockHTTP3)
     }
 
     func showToast(_ message: String, type: MvpToastType = .info, duration: TimeInterval = 2.5) {
@@ -79,6 +69,10 @@ final class MvpManager {
                 await appModel.vpnManager.disconnect()
             } else {
                 do {
+                    // Apply optimal MVP preferences right before connecting
+                    let defaults = AppGroup.defaults
+                    defaults.set(true, forKey: PreferenceKey.blockHTTP3)
+                    
                     // Ensure active config is written before connecting
                     try appModel.subscriptionService.writeActiveConfig(activeProfile)
                     await appModel.vpnManager.connect()
