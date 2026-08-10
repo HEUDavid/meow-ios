@@ -2,40 +2,7 @@ import Foundation
 
 /// Shared App Group identifier used by the app and the packet-tunnel extension.
 public enum AppGroup {
-    public static let identifier: String = {
-        if let dynamicId = getAppGroupFromProvisioningProfile() {
-            return dynamicId
-        }
-        return "group.com.tangzixiang.meow"
-    }()
-
-    private static func getAppGroupFromProvisioningProfile() -> String? {
-        guard let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision"),
-              let data = try? Data(contentsOf: url) else {
-            return nil
-        }
-        
-        guard let startTag = "<?xml".data(using: .utf8),
-              let endTag = "</plist>".data(using: .utf8) else {
-            return nil
-        }
-        
-        guard let startRange = data.range(of: startTag),
-              let endRange = data.range(of: endTag, in: startRange.upperBound..<data.count) else {
-            return nil
-        }
-        
-        let plistData = data.subdata(in: startRange.lowerBound..<endRange.upperBound)
-        
-        guard let plist = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
-              let entitlements = plist["Entitlements"] as? [String: Any],
-              let appGroups = entitlements["com.apple.security.application-groups"] as? [String],
-              let firstGroup = appGroups.first else {
-            return nil
-        }
-        
-        return firstGroup
-    }
+    public static let identifier = "group.ssadtyer.top"
 
     public static var containerURL: URL {
         if let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: identifier) {
