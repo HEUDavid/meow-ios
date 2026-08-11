@@ -86,7 +86,7 @@ jobs:
             sed 's/$(AppIdentifierPrefix)/S9S9S9S9S9./g' | \
             sed "s/<\/dict>/<key>application-identifier<\/key><string>S9S9S9S9S9.${APP_BUNDLE_ID}<\/string><\/dict>/g" > build/App.entitlements
             
-          APPEX_PATH=$(ls build/Payload/meow-ios.app/PlugIns/*.appex -d | head -n 1)
+          APPEX_PATH=$(find build/Payload/meow-ios.app/PlugIns -name "*.appex" -type d | head -n 1)
           EXT_BUNDLE_ID=$(plutil -extract CFBundleIdentifier raw "$APPEX_PATH/Info.plist")
           cat PacketTunnel/PacketTunnel.entitlements | \
             sed 's/$(AppIdentifierPrefix)/S9S9S9S9S9./g' | \
