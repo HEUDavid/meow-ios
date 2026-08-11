@@ -19,46 +19,34 @@ echo "   - Bundle Prefix: $APP_BUNDLE_PREFIX"
 echo "   - App Group: $APP_GROUP"
 echo "   - Scheme: $APP_SCHEME"
 
-# 1. Update project.yml
+# 1. Update App Group globally FIRST (so it doesn't get messed up by bundle prefix replacement)
+echo "🔐 Updating App Group globally..."
+find . -type f \( -name "*.swift" -o -name "*.m" -o -name "*.h" -o -name "*.entitlements" -o -name "project.yml" \) -exec sed -i '' "s/group\.com\.tangzixiang\.meow/$APP_GROUP/g" {} +
+
+# 2. Update project.yml
 echo "📦 Updating project.yml..."
 sed -i '' "s/bundleIdPrefix: com.tangzixiang.meow/bundleIdPrefix: $APP_BUNDLE_PREFIX/g" project.yml
 sed -i '' "s/PRODUCT_BUNDLE_IDENTIFIER: com.tangzixiang.meow.PacketTunnel/PRODUCT_BUNDLE_IDENTIFIER: $APP_BUNDLE_PREFIX.PacketTunnel/g" project.yml
 sed -i '' "s/PRODUCT_BUNDLE_IDENTIFIER: com.tangzixiang.meow/PRODUCT_BUNDLE_IDENTIFIER: $APP_BUNDLE_PREFIX/g" project.yml
 
-sed -i '' "s/group.com.tangzixiang.meow/$APP_GROUP/g" project.yml
 sed -i '' "s/\$(AppIdentifierPrefix)com.tangzixiang.meow/\$(AppIdentifierPrefix)$APP_BUNDLE_PREFIX/g" project.yml
 
 sed -i '' "s/CFBundleDisplayName: meow Tunnel/CFBundleDisplayName: $APP_NAME Tunnel/g" project.yml
 sed -i '' "s/CFBundleDisplayName: meow/CFBundleDisplayName: $APP_NAME/g" project.yml
 
 sed -i '' "s/CFBundleURLName: com.tangzixiang.meow.deeplink/CFBundleURLName: $APP_BUNDLE_PREFIX.deeplink/g" project.yml
-sed -i '' "/CFBundleURLSchemes:/!b;n;s/- meow/- $APP_SCHEME/" project.yml
+sed -i '' -e '/CFBundleURLSchemes:/!b' -e 'n' -e "s/- meow/- $APP_SCHEME/" project.yml
 
 sed -i '' "s/NSCameraUsageDescription: \"meow uses/NSCameraUsageDescription: \"$APP_NAME uses/g" project.yml
 
-# 2. Update Entitlements (App and PacketTunnel)
-echo "🔐 Updating Entitlements..."
-sed -i '' "s/group.com.tangzixiang.meow/$APP_GROUP/g" App/App.entitlements
+# 3. Update Entitlements (Keychain access groups)
+echo "🔐 Updating Keychain Entitlements..."
 sed -i '' "s/\$(AppIdentifierPrefix)com.tangzixiang.meow/\$(AppIdentifierPrefix)$APP_BUNDLE_PREFIX/g" App/App.entitlements
-
-sed -i '' "s/group.com.tangzixiang.meow/$APP_GROUP/g" PacketTunnel/PacketTunnel.entitlements
 sed -i '' "s/\$(AppIdentifierPrefix)com.tangzixiang.meow/\$(AppIdentifierPrefix)$APP_BUNDLE_PREFIX/g" PacketTunnel/PacketTunnel.entitlements
 
-# Note: The user already manually updated the App Group to group.ssadtyer.top
-# in .entitlements previously, so let's also catch that specifically in case
-# the environment variable is changed later.
-sed -i '' "s/group.ssadtyer.top/$APP_GROUP/g" project.yml 2>/dev/null || true
-sed -i '' "s/group.ssadtyer.top/$APP_GROUP/g" App/App.entitlements 2>/dev/null || true
-sed -i '' "s/group.ssadtyer.top/$APP_GROUP/g" PacketTunnel/PacketTunnel.entitlements 2>/dev/null || true
-sed -i '' "s/group.ssadtyer.top/$APP_GROUP/g" MeowShared/Sources/MeowModels/AppGroup.swift 2>/dev/null || true
-sed -i '' "s/group.ssadtyer.top/$APP_GROUP/g" PacketTunnel/Sources/MWAppGroup.m 2>/dev/null || true
-
-# 3. Update VpnManager.swift Hardcode
-echo "🛠 Updating VpnManager.swift..."
-sed -i '' "s/proto.providerBundleIdentifier = \"com.tangzixiang.meow.PacketTunnel\"/proto.providerBundleIdentifier = \"$APP_BUNDLE_PREFIX.PacketTunnel\"/g" App/Sources/Services/VpnManager.swift
-
-# 4. (Optional) Update Logger Subsystems for cleaner logs
-echo "📝 Updating Logger identifiers..."
-find App/Sources MeowShared/Sources PacketTunnel/Sources -name "*.swift" -type f -exec sed -i '' "s/com.tangzixiang.meow/$APP_BUNDLE_PREFIX/g" {} +
+# 4. Update Source Code Identifiers
+echo "🛠 Updating Source Code Identifiers..."
+# Replace generic com.tangzixiang.meow occurrences in all source files (Swift, Obj-C, Rust, Plist)
+find App/Sources MeowShared/Sources PacketTunnel/Sources core/rust/meow-ios-ffi App -type f \( -name "*.swift" -o -name "*.m" -o -name "*.rs" -o -name "*.plist" \) -exec sed -i '' "s/com.tangzixiang.meow/$APP_BUNDLE_PREFIX/g" {} +
 
 echo "✅ Rebranding complete! Ready for xcodegen."
