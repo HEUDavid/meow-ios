@@ -78,10 +78,24 @@ jobs:
           mkdir -p build/Payload
           cp -a build/meow-ios.xcarchive/Products/Applications/meow-ios.app build/Payload/
           
+          # Inject a dummy TeamID for App Groups to work properly under Sideloadly/TrollStore.
+          # Sideloadly will replace S9S9S9S9S9. with the actual provisioning profile's TeamID.
+          # Without application-identifier and a concrete keychain prefix, the OS fails to create the App Group container.
+          APP_BUNDLE_ID=$(plutil -extract CFBundleIdentifier raw build/Payload/meow-ios.app/Info.plist)
+          cat App/App.entitlements | \
+            sed 's/$(AppIdentifierPrefix)/S9S9S9S9S9./g' | \
+            sed "s/<\/dict>/<key>application-identifier<\/key><string>S9S9S9S9S9.${APP_BUNDLE_ID}<\/string><\/dict>/g" > build/App.entitlements
+            
+          APPEX_PATH=$(ls build/Payload/meow-ios.app/PlugIns/*.appex -d | head -n 1)
+          EXT_BUNDLE_ID=$(plutil -extract CFBundleIdentifier raw "$APPEX_PATH/Info.plist")
+          cat PacketTunnel/PacketTunnel.entitlements | \
+            sed 's/$(AppIdentifierPrefix)/S9S9S9S9S9./g' | \
+            sed "s/<\/dict>/<key>application-identifier<\/key><string>S9S9S9S9S9.${EXT_BUNDLE_ID}<\/string><\/dict>/g" > build/PacketTunnel.entitlements
+          
           # Ad-hoc sign the app and extensions. Sideloadly's mach-o parser 
           # often throws "Invalid file" if LC_CODE_SIGNATURE is completely missing.
-          codesign --force --sign - --timestamp=none --entitlements PacketTunnel/PacketTunnel.entitlements build/Payload/meow-ios.app/PlugIns/*.appex || true
-          codesign --force --sign - --timestamp=none --entitlements App/App.entitlements build/Payload/meow-ios.app
+          codesign --force --sign - --timestamp=none --entitlements build/PacketTunnel.entitlements "$APPEX_PATH" || true
+          codesign --force --sign - --timestamp=none --entitlements build/App.entitlements build/Payload/meow-ios.app
           
           cd build
           zip -qyr meow-ios-unsigned.ipa Payload
