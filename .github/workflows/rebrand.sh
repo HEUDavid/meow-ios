@@ -35,18 +35,36 @@ sed -i '' "s/CFBundleDisplayName: meow Tunnel/CFBundleDisplayName: $APP_NAME Tun
 sed -i '' "s/CFBundleDisplayName: meow/CFBundleDisplayName: $APP_NAME/g" project.yml
 
 sed -i '' "s/CFBundleURLName: com.tangzixiang.meow.deeplink/CFBundleURLName: $APP_BUNDLE_PREFIX.deeplink/g" project.yml
-sed -i '' -e '/CFBundleURLSchemes:/!b' -e 'n' -e "s/- meow/- $APP_SCHEME/" project.yml
+sed -i '' -e "/CFBundleURLSchemes:/!b" -e "n" -e "s/- meow/- $APP_SCHEME/" project.yml
 
 sed -i '' "s/NSCameraUsageDescription: \"meow uses/NSCameraUsageDescription: \"$APP_NAME uses/g" project.yml
 
-# 3. Update Entitlements (Keychain access groups)
-echo "🔐 Updating Keychain Entitlements..."
+# 2. Update Entitlements (App and PacketTunnel)
+echo "🔐 Updating Entitlements..."
+sed -i '' "s/group.com.tangzixiang.meow/$APP_GROUP/g" App/App.entitlements
 sed -i '' "s/\$(AppIdentifierPrefix)com.tangzixiang.meow/\$(AppIdentifierPrefix)$APP_BUNDLE_PREFIX/g" App/App.entitlements
+
+sed -i '' "s/group.com.tangzixiang.meow/$APP_GROUP/g" PacketTunnel/PacketTunnel.entitlements
 sed -i '' "s/\$(AppIdentifierPrefix)com.tangzixiang.meow/\$(AppIdentifierPrefix)$APP_BUNDLE_PREFIX/g" PacketTunnel/PacketTunnel.entitlements
 
-# 4. Update Source Code Identifiers
-echo "🛠 Updating Source Code Identifiers..."
-# Replace generic com.tangzixiang.meow occurrences in all source files (Swift, Obj-C, Rust, Plist)
-find App/Sources MeowShared/Sources PacketTunnel/Sources core/rust/meow-ios-ffi App -type f \( -name "*.swift" -o -name "*.m" -o -name "*.rs" -o -name "*.plist" \) -exec sed -i '' "s/com.tangzixiang.meow/$APP_BUNDLE_PREFIX/g" {} +
+# 3. Update AppGroup and MWAppGroup Hardcode
+echo "⚙️ Updating Code AppGroup Identifiers..."
+sed -i '' "s/group.com.tangzixiang.meow/$APP_GROUP/g" MeowShared/Sources/MeowModels/AppGroup.swift
+sed -i '' "s/group.com.tangzixiang.meow/$APP_GROUP/g" PacketTunnel/Sources/MWAppGroup.m
+
+# Note: Catch any legacy group.ssadtyer.top leftovers just in case
+sed -i '' "s/group.ssadtyer.top/$APP_GROUP/g" project.yml 2>/dev/null || true
+sed -i '' "s/group.ssadtyer.top/$APP_GROUP/g" App/App.entitlements 2>/dev/null || true
+sed -i '' "s/group.ssadtyer.top/$APP_GROUP/g" PacketTunnel/PacketTunnel.entitlements 2>/dev/null || true
+sed -i '' "s/group.ssadtyer.top/$APP_GROUP/g" MeowShared/Sources/MeowModels/AppGroup.swift 2>/dev/null || true
+sed -i '' "s/group.ssadtyer.top/$APP_GROUP/g" PacketTunnel/Sources/MWAppGroup.m 2>/dev/null || true
+
+# 4. Update VpnManager.swift Hardcode
+echo "🛠 Updating VpnManager.swift..."
+sed -i '' "s/proto.providerBundleIdentifier = \"com.tangzixiang.meow.PacketTunnel\"/proto.providerBundleIdentifier = \"$APP_BUNDLE_PREFIX.PacketTunnel\"/g" App/Sources/Services/VpnManager.swift
+
+# 5. (Optional) Update Logger Subsystems for cleaner logs
+echo "📝 Updating Logger identifiers..."
+find App/Sources MeowShared/Sources PacketTunnel/Sources -name "*.swift" -type f -exec sed -i '' "s/com.tangzixiang.meow/$APP_BUNDLE_PREFIX/g" {} +
 
 echo "✅ Rebranding complete! Ready for xcodegen."
