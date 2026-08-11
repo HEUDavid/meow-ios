@@ -52,6 +52,9 @@ jobs:
         run: |
           brew install xcodegen
           
+          # Inject App Store identifiers and FkAd branding dynamically
+          ./scripts/rebrand.sh
+          
           # Dynamically remove the strip script to prevent corrupting unsigned Mach-O binaries
           sed -i '' '/postBuildScripts:/,/fi/d' project.yml
           
