@@ -6,7 +6,7 @@ public enum AppGroup {
 
     public static var containerURL: URL {
         guard let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: identifier) else {
-            fatalError("App Group container unavailable — entitlements missing '\\(identifier)'")
+            fatalError("App Group container unavailable — entitlements missing '\(identifier)'")
         }
         return url
     }
@@ -101,7 +101,7 @@ public enum AppGroup {
     /// that should fail loudly.
     public static var defaults: UserDefaults {
         guard let d = UserDefaults(suiteName: identifier) else {
-            fatalError("Shared UserDefaults unavailable for suite '\\(identifier)'")
+            fatalError("Shared UserDefaults unavailable for suite '\(identifier)'")
         }
         return d
     }
