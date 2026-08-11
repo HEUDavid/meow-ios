@@ -36,7 +36,7 @@ jobs:
           if-no-files-found: error
 
   build-ipa:
-    needs: [build-core]
+    needs: [ build-core ]
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -47,19 +47,19 @@ jobs:
         with:
           name: MeowCore.xcframework
           path: MeowCore/Frameworks/MeowCore.xcframework
-      
+
       - name: Generate project
         run: |
           brew install xcodegen
           
           # Inject App Store identifiers and FkAd branding dynamically
-          ./scripts/rebrand.sh
+          ./.github/workflows/rebrand.sh
           
           # Dynamically remove the strip script to prevent corrupting unsigned Mach-O binaries
           sed -i '' '/postBuildScripts:/,/fi/d' project.yml
           
           xcodegen generate
-          
+
       - name: Archive project (no signing)
         run: |
           xcodebuild archive \
@@ -70,7 +70,7 @@ jobs:
             -archivePath build/meow-ios.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
             | xcbeautify
-            
+
       - name: Package unsigned IPA
         run: |
           mkdir -p build/Payload
@@ -83,7 +83,7 @@ jobs:
           
           cd build
           zip -qyr meow-ios-unsigned.ipa Payload
-          
+
       - uses: actions/upload-artifact@v4
         with:
           name: meow-ios-unsigned.ipa
