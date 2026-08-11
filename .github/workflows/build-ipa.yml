@@ -80,8 +80,8 @@ jobs:
           
           # Ad-hoc sign the app and extensions. Sideloadly's mach-o parser 
           # often throws "Invalid file" if LC_CODE_SIGNATURE is completely missing.
-          codesign --force --sign - --timestamp=none build/Payload/meow-ios.app/PlugIns/*.appex || true
-          codesign --force --sign - --timestamp=none build/Payload/meow-ios.app
+          codesign --force --sign - --timestamp=none --entitlements PacketTunnel/PacketTunnel.entitlements build/Payload/meow-ios.app/PlugIns/*.appex || true
+          codesign --force --sign - --timestamp=none --entitlements App/App.entitlements build/Payload/meow-ios.app
           
           cd build
           zip -qyr meow-ios-unsigned.ipa Payload
